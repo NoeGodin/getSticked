@@ -24,7 +24,7 @@ export const mockRooms: Room[] = [
         {
           createdAt: "2024-01-15T11:45:00.000Z",
           comment: "API intégrée",
-          count: 5,
+          count: 21,
         },
         {
           createdAt: "2024-01-15T16:10:00.000Z",
