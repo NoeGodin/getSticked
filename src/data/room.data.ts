@@ -47,7 +47,7 @@ export const mockRooms: Room[] = [
         {
           createdAt: "2024-01-12T15:00:00.000Z",
           comment: "Mockup validé",
-          count: 2,
+          count: 800,
         },
       ],
       player2: [

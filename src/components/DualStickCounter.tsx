@@ -16,14 +16,12 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({
   player2Sticks = [],
 }) => {
   return (
-    <div className="h-screen flex bg-gray-100">
-      {/* Player 1 */}
-      <div className="flex-1 border-r border-gray-300">
+    <div className="min-h-dvh flex items-center justify-center bg-gray-100">
+      <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4">
+        {/* Player 1 */}
         <StickCounter playerName={player1Name} sticks={player1Sticks} />
-      </div>
 
-      {/* Player 2 */}
-      <div className="flex-1">
+        {/* Player 2 */}
         <StickCounter playerName={player2Name} sticks={player2Sticks} />
       </div>
     </div>
