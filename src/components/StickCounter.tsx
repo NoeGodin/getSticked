@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { Check, History, Minus, Plus } from "lucide-react";
 import StickLog from "./StickLog";
 import type { StickCounterProps } from "../types/ui.types";
+import { getTotalSticks } from "../utils/helpers.ts";
 
 const StickCounter: React.FC<StickCounterProps> = ({ playerName, sticks }) => {
-  const totalSticks = sticks.reduce((sum, stick) => sum + stick.count, 0);
+  const totalSticks = getTotalSticks(sticks);
+
+  sticks.reduce((sum, stick) => sum + stick.count, 0);
   const [currentSticks, setCurrentSticks] = useState<number>(totalSticks);
   const [tempCount, setTempCount] = useState<number>(totalSticks);
   const [isLogOpen, setIsLogOpen] = useState<boolean>(false);

@@ -1,6 +1,7 @@
 import React from "react";
 import { Calendar, MessageSquare, X } from "lucide-react";
 import type { StickLogProps } from "../types/ui.types";
+import { formatDate } from "../utils/helpers.ts";
 
 const StickLog: React.FC<StickLogProps> = ({
   isOpen,
@@ -9,17 +10,6 @@ const StickLog: React.FC<StickLogProps> = ({
   sticks,
 }) => {
   if (!isOpen) return null;
-
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const totalSticks = sticks.reduce((sum, stick) => sum + stick.count, 0);
 

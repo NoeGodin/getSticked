@@ -4,6 +4,7 @@ import DualStickCounter from "../components/DualStickCounter.tsx";
 import type { Room } from "../types/room.types";
 import type { HomePageProps } from "../types/ui.types.ts";
 import { mockRooms } from "../data/room.data.ts";
+import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
 
 const HomePage: React.FC<HomePageProps> = ({
   userSession,
@@ -54,24 +55,9 @@ const HomePage: React.FC<HomePageProps> = ({
     setSelectedRoom(null);
   };
 
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
   const calculateTotalSticks = (room: Room) => {
-    const player1Total = room.batons.player1.reduce(
-      (sum, stick) => sum + stick.count,
-      0,
-    );
-    const player2Total = room.batons.player2.reduce(
-      (sum, stick) => sum + stick.count,
-      0,
-    );
+    const player1Total = getTotalSticks(room.batons.player1);
+    const player2Total = getTotalSticks(room.batons.player2);
     return { player1Total, player2Total, total: player1Total + player2Total };
   };
 
@@ -225,13 +211,15 @@ const HomePage: React.FC<HomePageProps> = ({
                         <Calendar size={12} />
                         <span>
                           Rejoint le{" "}
-                          {formatDate(joinedRoom?.joinedAt || room.createdAt)}
+                          {formatShortDate(
+                            joinedRoom?.joinedAt || room.createdAt,
+                          )}
                         </span>
                       </div>
                       {room.updatedAt && (
                         <div className="flex items-center space-x-1">
                           <MessageSquare size={12} />
-                          <span>MAJ {formatDate(room.updatedAt)}</span>
+                          <span>MAJ {formatShortDate(room.updatedAt)}</span>
                         </div>
                       )}
                     </div>
