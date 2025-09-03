@@ -1,6 +1,6 @@
 import React from "react";
-import StickCounter from "../components/StickCounter";
-import type { Stick } from "../types/stick.types";
+import StickCounter from "./StickCounter.tsx";
+import type { Stick } from "../types/stick.types.ts";
 
 interface DualStickCounterProps {
   player1Name?: string;
