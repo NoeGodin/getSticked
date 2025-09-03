@@ -1,0 +1,249 @@
+import React, { useEffect, useState } from "react";
+import { ArrowRight, Calendar, MessageSquare, Plus, Users } from "lucide-react";
+import DualStickCounter from "../components/DualStickCounter.tsx";
+import type { Room } from "../types/room.types";
+import type { HomePageProps } from "../types/ui.types.ts";
+import { mockRooms } from "../data/room.data.ts";
+
+const HomePage: React.FC<HomePageProps> = ({
+  userSession,
+  onCreateRoom,
+  onJoinRoom,
+  onRoomSelect,
+}) => {
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const fetchRoomData = async (roomName: string): Promise<Room | null> => {
+    //TODO : replace this mock with firebase fetch
+
+    return mockRooms.find((room) => room.name === roomName) || null;
+  };
+
+  // Load all room data on component mount
+  useEffect(() => {
+    const loadRooms = async () => {
+      setLoading(true);
+      const roomPromises = userSession.joinedRooms.map((joinedRoom) =>
+        fetchRoomData(joinedRoom.name),
+      );
+
+      try {
+        const roomResults = await Promise.all(roomPromises);
+        const validRooms = roomResults.filter(
+          (room): room is Room => room !== null,
+        );
+        setRooms(validRooms);
+      } catch (error) {
+        console.error("Error loading rooms:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRooms();
+  }, [userSession.joinedRooms]);
+
+  const handleRoomClick = (room: Room) => {
+    setSelectedRoom(room);
+    onRoomSelect(room.name);
+  };
+
+  const handleBackToHome = () => {
+    setSelectedRoom(null);
+  };
+
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const calculateTotalSticks = (room: Room) => {
+    const player1Total = room.batons.player1.reduce(
+      (sum, stick) => sum + stick.count,
+      0,
+    );
+    const player2Total = room.batons.player2.reduce(
+      (sum, stick) => sum + stick.count,
+      0,
+    );
+    return { player1Total, player2Total, total: player1Total + player2Total };
+  };
+
+  // If a room is selected, show the DualStickCounter
+  if (selectedRoom) {
+    return (
+      <div className="relative">
+        <button
+          onClick={handleBackToHome}
+          className="absolute top-4 left-4 z-10 bg-white hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow-md transition-colors duration-200 flex items-center space-x-2"
+        >
+          <ArrowRight className="rotate-180" size={16} />
+          <span>Retour</span>
+        </button>
+        <DualStickCounter
+          player1Name={selectedRoom.player1Name}
+          player1Sticks={selectedRoom.batons.player1}
+          player2Name={selectedRoom.player2Name}
+          player2Sticks={selectedRoom.batons.player2}
+        />
+      </div>
+    );
+  }
+
+  // Home page view
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">GetSticked</h1>
+          <p className="text-gray-600">Suivez vos objectifs en équipe</p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-center space-x-4 mb-8">
+          <button
+            onClick={onCreateRoom}
+            className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
+          >
+            <Plus size={20} />
+            <span>Créer un salon</span>
+          </button>
+          <button
+            onClick={onJoinRoom}
+            className="flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
+          >
+            <Users size={20} />
+            <span>Rejoindre un salon</span>
+          </button>
+        </div>
+
+        {/* Room Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loading ? (
+            // Loading skeleton
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-lg shadow-lg p-6 animate-pulse"
+              >
+                <div className="h-6 bg-gray-200 rounded mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-3"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                <div className="flex justify-between items-center">
+                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              </div>
+            ))
+          ) : rooms.length === 0 ? (
+            // Empty state
+            <div className="col-span-full text-center py-12">
+              <Users size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                Aucun salon rejoint
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Créez votre premier salon ou rejoignez-en un existant
+              </p>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={onCreateRoom}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                >
+                  Créer un salon
+                </button>
+                <button
+                  onClick={onJoinRoom}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                >
+                  Rejoindre un salon
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Room cards
+            rooms.map((room) => {
+              const stickCounts = calculateTotalSticks(room);
+              const joinedRoom = userSession.joinedRooms.find(
+                (jr) => jr.name === room.name,
+              );
+
+              return (
+                <div
+                  key={room.name}
+                  onClick={() => handleRoomClick(room)}
+                  className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"
+                >
+                  <div className="p-6">
+                    {/* Room Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-xl font-semibold text-gray-800 line-clamp-1">
+                        {room.name}
+                      </h3>
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                        {stickCounts.total} bâtons
+                      </span>
+                    </div>
+
+                    {/* Description */}
+                    {room.description && (
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                        {room.description}
+                      </p>
+                    )}
+
+                    {/* Players */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700 font-medium">
+                          {room.player1Name}
+                        </span>
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                          {stickCounts.player1Total} bâtons
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700 font-medium">
+                          {room.player2Name}
+                        </span>
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                          {stickCounts.player2Total} bâtons
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
+                      <div className="flex items-center space-x-1">
+                        <Calendar size={12} />
+                        <span>
+                          Rejoint le{" "}
+                          {formatDate(joinedRoom?.joinedAt || room.createdAt)}
+                        </span>
+                      </div>
+                      {room.updatedAt && (
+                        <div className="flex items-center space-x-1">
+                          <MessageSquare size={12} />
+                          <span>MAJ {formatDate(room.updatedAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default HomePage;
