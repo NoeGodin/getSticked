@@ -1,19 +1,10 @@
 import React, { useState } from "react";
 import { Check, Minus, Plus } from "lucide-react";
+import type { StickCounterProps } from "../types/ui.types";
 
-interface StickCounterProps {
-  joueur?: string;
-  initialCount?: number;
-  onSave?: (count: number) => void;
-}
-
-const StickCounter: React.FC<StickCounterProps> = ({
-  joueur = "Joueur",
-  initialCount = 0,
-  onSave,
-}) => {
-  const [stickCount, setStickCount] = useState<number>(initialCount);
-  const [tempCount, setTempCount] = useState<number>(initialCount);
+const StickCounter: React.FC<StickCounterProps> = ({ playerName, sticks }) => {
+  const [currentSticks, setCurrentSticks] = useState<number>(sticks.length);
+  const [tempCount, setTempCount] = useState<number>(sticks.length);
 
   const handleAdd = () => {
     setTempCount((prev) => prev + 1);
@@ -23,9 +14,17 @@ const StickCounter: React.FC<StickCounterProps> = ({
     setTempCount((prev) => Math.max(0, prev - 1));
   };
 
-  const handleValidate = () => {
-    setStickCount(tempCount);
-    onSave?.(tempCount);
+  const handleValidate = async () => {
+    const difference = tempCount - currentSticks;
+
+    if (difference > 0) {
+      console.log(`Adding ${difference} sticks to ${playerName}`);
+      // TODO: Open the modal to add a comment which will modify the db
+    } else if (difference < 0) {
+      console.log(`deleting ${Math.abs(difference)} sticks to ${playerName}`);
+      // TODO: Delete the last ${Math.abs(difference)} sticks from the db
+    }
+    setCurrentSticks(tempCount);
   };
 
   // Function that renders the sticks based on the count
@@ -66,11 +65,13 @@ const StickCounter: React.FC<StickCounterProps> = ({
     return sticks;
   };
 
+  const hasChanges = currentSticks !== tempCount;
+
   return (
     <div className="flex flex-col items-center p-8 bg-gray-50 min-h-screen">
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">
-          {joueur}
+          {playerName}
         </h2>
 
         {/* Displaying sticks */}
@@ -87,9 +88,9 @@ const StickCounter: React.FC<StickCounterProps> = ({
         {/* Numeric display for sticks */}
         <div className="text-center mb-8">
           <span className="text-4xl font-bold text-gray-800">{tempCount}</span>
-          {stickCount !== tempCount && (
+          {hasChanges && (
             <div className="text-sm text-gray-500 mt-2">
-              Sauvegardé: {stickCount}
+              Sauvegardé: {currentSticks}
             </div>
           )}
         </div>
@@ -107,7 +108,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
           {/* SAVE STICKS */}
           <button
             onClick={handleValidate}
-            disabled={stickCount === tempCount}
+            disabled={!hasChanges}
             className="flex items-center justify-center w-12 h-12 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 shadow-lg"
           >
             <Check size={20} />
