@@ -1,6 +1,7 @@
 import type { Stick } from "./stick.types.ts";
 
 export interface Room {
+  id?: string; // Firebase document ID
   name: string;
   secretKey: string;
   description?: string;

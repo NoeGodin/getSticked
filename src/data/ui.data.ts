@@ -16,6 +16,7 @@ export const mockStickCounterProps: StickCounterProps[] = [
         count: 3,
       },
     ],
+    player: "player1",
   },
   {
     playerName: "Bob",
@@ -31,6 +32,7 @@ export const mockStickCounterProps: StickCounterProps[] = [
         count: 2,
       },
     ],
+    player: "player1",
   },
 ];
 
