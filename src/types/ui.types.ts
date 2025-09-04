@@ -1,5 +1,6 @@
 import type { Stick } from "./stick.types";
 import type { UserSession } from "./session.types.ts";
+import React from "react";
 
 export interface StickCounterProps {
   playerName: string;
@@ -15,7 +16,5 @@ export interface StickLogProps {
 
 export interface HomePageProps {
   userSession: UserSession;
-  onCreateRoom: () => void;
-  onJoinRoom: () => void;
-  onRoomSelect: (roomName: string) => void;
+  setUserSession: React.Dispatch<React.SetStateAction<UserSession>>;
 }

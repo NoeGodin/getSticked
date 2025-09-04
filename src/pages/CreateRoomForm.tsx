@@ -1,16 +1,18 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, Key, User, Users } from "lucide-react";
-import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types.ts";
+import type {
+  CreateRoomForm as CreateRoomFormData,
+  Room,
+} from "../types/room.types";
+import type { UserSession } from "../types/session.types";
+import { verifRoomId } from "../utils/form.ts";
 
-interface CreateRoomFormProps {
-  onSubmit: (formData: CreateRoomFormData) => void;
-  onCancel: () => void;
+interface Props {
+  setUserSession: React.Dispatch<React.SetStateAction<UserSession>>;
 }
 
-const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
-  onSubmit,
-  onCancel,
-}) => {
+export default function CreateRoomForm({ setUserSession }: Props) {
   const [formData, setFormData] = useState<CreateRoomFormData>({
     name: "",
     secretKey: "",
@@ -20,6 +22,7 @@ const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
   });
 
   const [errors, setErrors] = useState<Partial<CreateRoomFormData>>({});
+  const navigate = useNavigate();
 
   const handleInputChange = (
     field: keyof CreateRoomFormData,
@@ -40,19 +43,7 @@ const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<CreateRoomFormData> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Le nom du salon est requis";
-    } else if (formData.name.length < 3) {
-      newErrors.name = "Le nom doit contenir au moins 3 caractères";
-    }
-
-    if (!formData.secretKey.trim()) {
-      newErrors.secretKey = "La clé secrète est requise";
-    } else if (formData.secretKey.length < 4) {
-      newErrors.secretKey = "La clé doit contenir au moins 4 caractères";
-    }
+    const newErrors: Partial<CreateRoomFormData> = verifRoomId(formData, {});
 
     if (!formData.player1Name.trim()) {
       newErrors.player1Name = "Le nom du joueur 1 est requis";
@@ -66,14 +57,6 @@ const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (validateForm()) {
-      onSubmit(formData);
-    }
-  };
-
   const generateSecretKey = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let result = "";
@@ -83,13 +66,44 @@ const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
     handleInputChange("secretKey", result);
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (validateForm()) {
+      const newRoom: Room = {
+        ...formData,
+        batons: { player1: [], player2: [] },
+        createdAt: new Date().toISOString(),
+      };
+
+      setUserSession((prev) => ({
+        ...prev,
+        currentRoomName: newRoom.name,
+        joinedRooms: [
+          ...prev.joinedRooms,
+          {
+            name: newRoom.name,
+            lastVisited: new Date().toISOString(),
+            joinedAt: new Date().toISOString(),
+          },
+        ],
+      }));
+      //TODO: Save newRoom to database
+      navigate("/game");
+    }
+  };
+
+  const handleCancel = () => {
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         {/* Header */}
         <div className="flex items-center mb-6">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="mr-3 p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <ArrowLeft size={20} className="text-gray-600" />
@@ -215,7 +229,7 @@ const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
           <div className="flex space-x-3 pt-4">
             <button
               type="button"
-              onClick={onCancel}
+              onClick={handleCancel}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
             >
               Annuler
@@ -231,6 +245,4 @@ const CreateRoomForm: React.FC<CreateRoomFormProps> = ({
       </div>
     </div>
   );
-};
-
-export default CreateRoomForm;
+}

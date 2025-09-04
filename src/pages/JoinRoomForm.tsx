@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { ArrowLeft, Key, Users } from "lucide-react";
-import type { JoinRoomForm as JoinRoomFormData } from "../types/room.types.ts";
+import { useNavigate } from "react-router-dom";
+import type { JoinRoomForm as JoinRoomFormData } from "../types/room.types";
+import type { UserSession } from "../types/session.types";
+import { verifRoomId } from "../utils/form.ts";
 
 interface JoinRoomFormProps {
-  onSubmit: (formData: JoinRoomFormData) => void;
-  onCancel: () => void;
+  setUserSession: React.Dispatch<React.SetStateAction<UserSession>>;
 }
 
-const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
+const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
   const [formData, setFormData] = useState<JoinRoomFormData>({
     name: "",
     secretKey: "",
@@ -16,35 +18,17 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
   const [errors, setErrors] = useState<Partial<JoinRoomFormData>>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (field: keyof JoinRoomFormData, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const navigate = useNavigate();
 
-    // Clear error when user starts typing
+  const handleInputChange = (field: keyof JoinRoomFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: undefined,
-      }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<JoinRoomFormData> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Le nom du salon est requis";
-    } else if (formData.name.length < 3) {
-      newErrors.name = "Le nom doit contenir au moins 3 caractères";
-    }
-
-    if (!formData.secretKey.trim()) {
-      newErrors.secretKey = "La clé secrète est requise";
-    } else if (formData.secretKey.length < 4) {
-      newErrors.secretKey = "La clé doit contenir au moins 4 caractères";
-    }
+    const newErrors: Partial<JoinRoomFormData> = verifRoomId(formData, {});
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -65,13 +49,45 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
           setErrors({ name: "Ce salon n'existe pas" });
           return;
         }
-
         if (!secretKeyValid) {
           setErrors({ secretKey: "Clé secrète incorrecte" });
           return;
         }
 
-        onSubmit(formData);
+        // USER SESSION MANAGEMENT
+        setUserSession((prev) => {
+          const existingRoom = prev.joinedRooms.find(
+            (room) => room.name === formData.name,
+          );
+
+          if (existingRoom) {
+            return {
+              ...prev,
+              currentRoomName: formData.name,
+              joinedRooms: prev.joinedRooms.map((room) =>
+                room.name === formData.name
+                  ? { ...room, lastVisited: new Date().toISOString() }
+                  : room,
+              ),
+            };
+          } else {
+            return {
+              ...prev,
+              currentRoomName: formData.name,
+              joinedRooms: [
+                ...prev.joinedRooms,
+                {
+                  name: formData.name,
+                  description: undefined,
+                  lastVisited: new Date().toISOString(),
+                  joinedAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+        });
+
+        navigate("/game");
       } catch (error) {
         console.error("Error joining room:", error);
         setErrors({ name: "Erreur lors de la connexion au salon" });
@@ -87,7 +103,7 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
         {/* Header */}
         <div className="flex items-center mb-6">
           <button
-            onClick={onCancel}
+            onClick={() => navigate("/")}
             className="mr-3 p-2 hover:bg-gray-100 rounded-full transition-colors"
             disabled={isLoading}
           >
@@ -98,14 +114,7 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
           </h1>
         </div>
 
-        {/* Info Card */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-          <p className="text-sm text-blue-800">
-            <strong>💡 Astuce:</strong> Demandez le nom du salon et la clé
-            secrète à la personne qui l'a créée.
-          </p>
-        </div>
-
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Room Name */}
           <div>
@@ -118,7 +127,7 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               disabled={isLoading}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Ex: Partie du vendredi"
@@ -141,40 +150,32 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ onSubmit, onCancel }) => {
                 handleInputChange("secretKey", e.target.value.toUpperCase())
               }
               disabled={isLoading}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed uppercase ${
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase ${
                 errors.secretKey ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Ex: ABC123"
-              style={{ textTransform: "uppercase" }}
             />
             {errors.secretKey && (
               <p className="mt-1 text-sm text-red-600">{errors.secretKey}</p>
             )}
           </div>
 
-          {/* Submit Buttons */}
+          {/* Submit */}
           <div className="flex space-x-3 pt-4">
             <button
               type="button"
-              onClick={onCancel}
+              onClick={() => navigate("/")}
               disabled={isLoading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-colors flex items-center justify-center"
+              className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-md transition-colors"
             >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Connexion...
-                </>
-              ) : (
-                "Rejoindre"
-              )}
+              {isLoading ? "Connexion..." : "Rejoindre"}
             </button>
           </div>
         </form>

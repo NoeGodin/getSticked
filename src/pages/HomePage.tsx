@@ -1,28 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { ArrowRight, Calendar, MessageSquare, Plus, Users } from "lucide-react";
-import DualStickCounter from "../components/DualStickCounter.tsx";
+import { Calendar, MessageSquare, Plus, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { Room } from "../types/room.types";
 import type { HomePageProps } from "../types/ui.types.ts";
 import { mockRooms } from "../data/room.data.ts";
 import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
 
-const HomePage: React.FC<HomePageProps> = ({
-  userSession,
-  onCreateRoom,
-  onJoinRoom,
-  onRoomSelect,
-}) => {
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const navigate = useNavigate();
   const fetchRoomData = async (roomName: string): Promise<Room | null> => {
-    //TODO : replace this mock with firebase fetch
-
+    // TODO: remplacer par un fetch Firebase
     return mockRooms.find((room) => room.name === roomName) || null;
   };
 
-  // Load all room data on component mount
   useEffect(() => {
     const loadRooms = async () => {
       setLoading(true);
@@ -47,12 +40,12 @@ const HomePage: React.FC<HomePageProps> = ({
   }, [userSession.joinedRooms]);
 
   const handleRoomClick = (room: Room) => {
-    setSelectedRoom(room);
-    onRoomSelect(room.name);
-  };
+    setUserSession((prev) => ({
+      ...prev,
+      currentRoomName: room.name,
+    }));
 
-  const handleBackToHome = () => {
-    setSelectedRoom(null);
+    navigate("/game");
   };
 
   const calculateTotalSticks = (room: Room) => {
@@ -61,28 +54,6 @@ const HomePage: React.FC<HomePageProps> = ({
     return { player1Total, player2Total, total: player1Total + player2Total };
   };
 
-  // If a room is selected, show the DualStickCounter
-  if (selectedRoom) {
-    return (
-      <div className="relative">
-        <button
-          onClick={handleBackToHome}
-          className="absolute top-4 left-4 z-10 bg-white hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow-md transition-colors duration-200 flex items-center space-x-2"
-        >
-          <ArrowRight className="rotate-180" size={16} />
-          <span>Retour</span>
-        </button>
-        <DualStickCounter
-          player1Name={selectedRoom.player1Name}
-          player1Sticks={selectedRoom.batons.player1}
-          player2Name={selectedRoom.player2Name}
-          player2Sticks={selectedRoom.batons.player2}
-        />
-      </div>
-    );
-  }
-
-  // Home page view
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -95,14 +66,14 @@ const HomePage: React.FC<HomePageProps> = ({
         {/* Action Buttons */}
         <div className="flex justify-center space-x-4 mb-8">
           <button
-            onClick={onCreateRoom}
+            onClick={() => navigate("/create")}
             className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
           >
             <Plus size={20} />
             <span>Créer un salon</span>
           </button>
           <button
-            onClick={onJoinRoom}
+            onClick={() => navigate("/join")}
             className="flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
           >
             <Users size={20} />
@@ -113,7 +84,6 @@ const HomePage: React.FC<HomePageProps> = ({
         {/* Room Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
-            // Loading skeleton
             Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
@@ -129,7 +99,6 @@ const HomePage: React.FC<HomePageProps> = ({
               </div>
             ))
           ) : rooms.length === 0 ? (
-            // Empty state
             <div className="col-span-full text-center py-12">
               <Users size={48} className="mx-auto text-gray-400 mb-4" />
               <h3 className="text-xl font-semibold text-gray-600 mb-2">
@@ -140,13 +109,13 @@ const HomePage: React.FC<HomePageProps> = ({
               </p>
               <div className="flex justify-center space-x-4">
                 <button
-                  onClick={onCreateRoom}
+                  onClick={() => navigate("/create")}
                   className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                 >
                   Créer un salon
                 </button>
                 <button
-                  onClick={onJoinRoom}
+                  onClick={() => navigate("/join")}
                   className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                 >
                   Rejoindre un salon
@@ -154,7 +123,6 @@ const HomePage: React.FC<HomePageProps> = ({
               </div>
             </div>
           ) : (
-            // Room cards
             rooms.map((room) => {
               const stickCounts = calculateTotalSticks(room);
               const joinedRoom = userSession.joinedRooms.find(
@@ -168,7 +136,6 @@ const HomePage: React.FC<HomePageProps> = ({
                   className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"
                 >
                   <div className="p-6">
-                    {/* Room Header */}
                     <div className="flex items-start justify-between mb-4">
                       <h3 className="text-xl font-semibold text-gray-800 line-clamp-1">
                         {room.name}
@@ -178,14 +145,12 @@ const HomePage: React.FC<HomePageProps> = ({
                       </span>
                     </div>
 
-                    {/* Description */}
                     {room.description && (
                       <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                         {room.description}
                       </p>
                     )}
 
-                    {/* Players */}
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-700 font-medium">
@@ -205,7 +170,6 @@ const HomePage: React.FC<HomePageProps> = ({
                       </div>
                     </div>
 
-                    {/* Footer */}
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
                       <div className="flex items-center space-x-1">
                         <Calendar size={12} />
