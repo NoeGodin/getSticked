@@ -1,15 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, Key, User, Users } from "lucide-react";
-import type {
-  CreateRoomForm as CreateRoomFormData,
-  Room,
-} from "../types/room.types";
+import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types";
 import type { UserSession } from "../types/session.types";
 import { verifRoomId } from "../utils/form.ts";
+import { RoomService } from "../services/room.service.ts";
 
 interface Props {
-  setUserSession: React.Dispatch<React.SetStateAction<UserSession>>;
+  setUserSession: (session: UserSession) => void;
 }
 
 export default function CreateRoomForm({ setUserSession }: Props) {
@@ -66,30 +64,39 @@ export default function CreateRoomForm({ setUserSession }: Props) {
     handleInputChange("secretKey", result);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (validateForm()) {
-      const newRoom: Room = {
-        ...formData,
-        batons: { player1: [], player2: [] },
-        createdAt: new Date().toISOString(),
-      };
+      try {
+        await RoomService.createRoom(formData);
 
-      setUserSession((prev) => ({
-        ...prev,
-        currentRoomName: newRoom.name,
-        joinedRooms: [
-          ...prev.joinedRooms,
-          {
-            name: newRoom.name,
-            lastVisited: new Date().toISOString(),
-            joinedAt: new Date().toISOString(),
-          },
-        ],
-      }));
-      //TODO: Save newRoom to database
-      navigate("/game");
+        const updateSession = (prev: UserSession) => ({
+          ...prev,
+          currentRoomName: formData.name,
+          joinedRooms: [
+            ...prev.joinedRooms,
+            {
+              name: formData.name,
+              secretKey: formData.secretKey,
+              lastVisited: new Date().toISOString(),
+              joinedAt: new Date().toISOString(),
+            },
+          ],
+        });
+
+        // Get current session from localStorage or default
+        const currentSession = JSON.parse(
+          localStorage.getItem("userSession") ||
+            '{"joinedRooms":[],"currentRoomName":null}',
+        ) as UserSession;
+        setUserSession(updateSession(currentSession));
+
+        navigate("/game");
+      } catch (error) {
+        console.error("Error creating room:", error);
+        setErrors({ name: "Erreur lors de la création du salon" });
+      }
     }
   };
 

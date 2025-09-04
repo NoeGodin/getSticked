@@ -5,7 +5,6 @@ import CreateRoomForm from "./pages/CreateRoomForm.tsx";
 import JoinRoomForm from "./pages/JoinRoomForm.tsx";
 import DualStickCounter from "./components/DualStickCounter";
 import type { UserSession } from "./types/session.types";
-import { mockUserSession } from "./data/session.data.ts";
 
 function App() {
   const [userSession, setUserSession] = useState<UserSession>({
@@ -14,10 +13,29 @@ function App() {
   });
 
   useEffect(() => {
-    //TODO: fetch from storage/session API
-    //the data we fetch should contain secret keys and should be entirely crypted none of its content should be readable
-    setUserSession(mockUserSession);
+    const loadUserSession = () => {
+      try {
+        const savedSession = localStorage.getItem('userSession');
+        if (savedSession) {
+          const parsedSession = JSON.parse(savedSession) as UserSession;
+          setUserSession(parsedSession);
+        }
+      } catch (error) {
+        console.error('Error loading user session:', error);
+      }
+    };
+
+    loadUserSession();
   }, []);
+
+  const saveUserSession = (session: UserSession) => {
+    try {
+      localStorage.setItem('userSession', JSON.stringify(session));
+      setUserSession(session);
+    } catch (error) {
+      console.error('Error saving user session:', error);
+    }
+  };
 
   const getCurrentRoom = () =>
     userSession.joinedRooms.find(
@@ -33,7 +51,7 @@ function App() {
           element={
             <HomePage
               userSession={userSession}
-              setUserSession={setUserSession}
+              setUserSession={saveUserSession}
             />
           }
         />
@@ -41,13 +59,13 @@ function App() {
         {/* Create Room */}
         <Route
           path="/create"
-          element={<CreateRoomForm setUserSession={setUserSession} />}
+          element={<CreateRoomForm setUserSession={saveUserSession} />}
         />
 
         {/* Join Room */}
         <Route
           path="/join"
-          element={<JoinRoomForm setUserSession={setUserSession} />}
+          element={<JoinRoomForm setUserSession={saveUserSession} />}
         />
 
         {/* Game */}
@@ -57,8 +75,6 @@ function App() {
             <DualStickCounter
               userSession={userSession}
               getCurrentRoom={getCurrentRoom}
-              player1Sticks={[]} // TODO: from room data
-              player2Sticks={[]} // TODO: from room data
             />
           }
         />

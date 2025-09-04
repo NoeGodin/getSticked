@@ -3,8 +3,9 @@ import { Calendar, MessageSquare, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../types/room.types";
 import type { HomePageProps } from "../types/ui.types.ts";
-import { mockRooms } from "../data/room.data.ts";
+import { RoomService } from "../services/room.service.ts";
 import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
+import type { UserSession } from "../types/session.types.ts";
 
 const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -12,8 +13,20 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
 
   const navigate = useNavigate();
   const fetchRoomData = async (roomName: string): Promise<Room | null> => {
-    // TODO: remplacer par un fetch Firebase
-    return mockRooms.find((room) => room.name === roomName) || null;
+    try {
+      const joinedRoom = userSession.joinedRooms.find(
+        (jr) => jr.name === roomName,
+      );
+      if (!joinedRoom) return null;
+
+      return await RoomService.joinRoom({
+        name: joinedRoom.name,
+        secretKey: joinedRoom.secretKey,
+      });
+    } catch (error) {
+      console.error(`Error fetching room ${roomName}:`, error);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -40,10 +53,14 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   }, [userSession.joinedRooms]);
 
   const handleRoomClick = (room: Room) => {
-    setUserSession((prev) => ({
-      ...prev,
+    const currentSession = JSON.parse(
+      localStorage.getItem("userSession") ||
+        '{"joinedRooms":[],"currentRoomName":null}',
+    ) as UserSession;
+    setUserSession({
+      ...currentSession,
       currentRoomName: room.name,
-    }));
+    });
 
     navigate("/game");
   };
