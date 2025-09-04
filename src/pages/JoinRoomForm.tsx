@@ -131,7 +131,7 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="Ex: Partie du vendredi"
+              placeholder="Ex: NoeXAlex:Biere"
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -185,7 +185,7 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
             Besoin d'aide ?
           </h3>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Le nom du salon est sensible à la casse</li>
+            <li>• Le nom du salon et la clé sont sensibles à la casse</li>
             <li>
               • Contactez le créateur si vous ne pouvez pas vous connecter
             </li>

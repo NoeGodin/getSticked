@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { X, Check, MessageSquare } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Check, MessageSquare, X } from "lucide-react";
 
 interface ConfirmStickModalProps {
   isOpen: boolean;
@@ -31,7 +31,7 @@ const ConfirmStickModal: React.FC<ConfirmStickModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       await onConfirm(comment.trim());
       onClose();
@@ -76,10 +76,9 @@ const ConfirmStickModal: React.FC<ConfirmStickModalProps> = ({
                 <MessageSquare size={32} className="text-blue-600" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {stickCount === 1 
-                  ? `Ajouter 1 bâton pour ${playerName}` 
-                  : `Ajouter ${stickCount} bâtons pour ${playerName}`
-                }
+                {stickCount === 1
+                  ? `Ajouter 1 bâton pour ${playerName}`
+                  : `Ajouter ${stickCount} bâtons pour ${playerName}`}
               </h3>
               <p className="text-sm text-gray-600">
                 Ajoutez un commentaire pour justifier ces bâtons (optionnel)
@@ -95,7 +94,6 @@ const ConfirmStickModal: React.FC<ConfirmStickModalProps> = ({
                 onChange={(e) => setComment(e.target.value)}
                 disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                placeholder="Ex: Excellent travail sur le projet React"
                 rows={3}
                 maxLength={200}
               />
