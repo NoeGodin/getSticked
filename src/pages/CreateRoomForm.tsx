@@ -132,7 +132,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="Ex: Partie du vendredi"
+              placeholder="Ex: NoeXAlex:Biere"
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -178,7 +178,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Description de la partie..."
+              placeholder="Ex: À chaque bière bue, 1 bâton !"
               rows={3}
             />
           </div>
@@ -199,7 +199,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.player1Name ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Nom du joueur 1"
+                placeholder="Ex: Noé"
               />
               {errors.player1Name && (
                 <p className="mt-1 text-sm text-red-600">
@@ -222,7 +222,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.player2Name ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Nom du joueur 2"
+                placeholder="Ex: Alex"
               />
               {errors.player2Name && (
                 <p className="mt-1 text-sm text-red-600">

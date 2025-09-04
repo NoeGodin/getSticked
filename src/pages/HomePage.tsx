@@ -77,7 +77,9 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">GetSticked</h1>
-          <p className="text-gray-600">Suivez vos objectifs en équipe</p>
+          <p className="text-gray-600">
+            Créer un salon pour n’importe quelle compétition entre 2 amis !
+          </p>
         </div>
 
         {/* Action Buttons */}
