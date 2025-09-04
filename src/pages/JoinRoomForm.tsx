@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import type { JoinRoomForm as JoinRoomFormData } from "../types/room.types";
 import type { UserSession } from "../types/session.types";
 import { verifRoomId } from "../utils/form.ts";
+import { RoomService } from "../services/room.service.ts";
 
 interface JoinRoomFormProps {
-  setUserSession: React.Dispatch<React.SetStateAction<UserSession>>;
+  setUserSession: (session: UserSession) => void;
 }
 
 const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
@@ -40,52 +41,52 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
     if (validateForm()) {
       setIsLoading(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        // TODO: Replace with actual API call
-        const roomExists = true; // Simulate room exists
-        const secretKeyValid = true; // Simulate valid secret key
+        const room = await RoomService.joinRoom(formData);
 
-        if (!roomExists) {
-          setErrors({ name: "Ce salon n'existe pas" });
-          return;
-        }
-        if (!secretKeyValid) {
-          setErrors({ secretKey: "Clé secrète incorrecte" });
+        if (!room) {
+          setErrors({
+            name: "Salon introuvable ou clé secrète incorrecte",
+          });
           return;
         }
 
         // USER SESSION MANAGEMENT
-        setUserSession((prev) => {
-          const existingRoom = prev.joinedRooms.find(
-            (room) => room.name === formData.name,
-          );
+        const currentSession = JSON.parse(
+          localStorage.getItem("userSession") ||
+            '{"joinedRooms":[],"currentRoomName":null}',
+        ) as UserSession;
+        const existingRoom = currentSession.joinedRooms.find(
+          (joinedRoom) => joinedRoom.name === formData.name,
+        );
 
-          if (existingRoom) {
-            return {
-              ...prev,
-              currentRoomName: formData.name,
-              joinedRooms: prev.joinedRooms.map((room) =>
-                room.name === formData.name
-                  ? { ...room, lastVisited: new Date().toISOString() }
-                  : room,
-              ),
-            };
-          } else {
-            return {
-              ...prev,
-              currentRoomName: formData.name,
-              joinedRooms: [
-                ...prev.joinedRooms,
-                {
-                  name: formData.name,
-                  description: undefined,
-                  lastVisited: new Date().toISOString(),
-                  joinedAt: new Date().toISOString(),
-                },
-              ],
-            };
-          }
-        });
+        let updatedSession: UserSession;
+        if (existingRoom) {
+          updatedSession = {
+            ...currentSession,
+            currentRoomName: formData.name,
+            joinedRooms: currentSession.joinedRooms.map((joinedRoom) =>
+              joinedRoom.name === formData.name
+                ? { ...joinedRoom, lastVisited: new Date().toISOString() }
+                : joinedRoom,
+            ),
+          };
+        } else {
+          updatedSession = {
+            ...currentSession,
+            currentRoomName: formData.name,
+            joinedRooms: [
+              ...currentSession.joinedRooms,
+              {
+                name: formData.name,
+                secretKey: formData.secretKey,
+                lastVisited: new Date().toISOString(),
+                joinedAt: new Date().toISOString(),
+              },
+            ],
+          };
+        }
+
+        setUserSession(updatedSession);
 
         navigate("/game");
       } catch (error) {
@@ -146,11 +147,9 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
             <input
               type="text"
               value={formData.secretKey}
-              onChange={(e) =>
-                handleInputChange("secretKey", e.target.value.toUpperCase())
-              }
+              onChange={(e) => handleInputChange("secretKey", e.target.value)}
               disabled={isLoading}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase ${
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.secretKey ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Ex: ABC123"

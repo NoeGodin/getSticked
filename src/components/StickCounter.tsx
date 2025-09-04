@@ -1,16 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Check, History, Minus, Plus } from "lucide-react";
 import StickLog from "./StickLog";
+import ConfirmStickModal from "./ConfirmStickModal";
 import type { StickCounterProps } from "../types/ui.types";
+import type { Stick } from "../types/stick.types";
 import { getTotalSticks } from "../utils/helpers.ts";
+import { RoomService } from "../services/room.service.ts";
 
-const StickCounter: React.FC<StickCounterProps> = ({ playerName, sticks }) => {
+const StickCounter: React.FC<StickCounterProps> = ({ 
+  playerName, 
+  sticks, 
+  roomId,
+  player,
+  onSticksUpdate
+}) => {
   const totalSticks = getTotalSticks(sticks);
 
-  sticks.reduce((sum, stick) => sum + stick.count, 0);
   const [currentSticks, setCurrentSticks] = useState<number>(totalSticks);
   const [tempCount, setTempCount] = useState<number>(totalSticks);
   const [isLogOpen, setIsLogOpen] = useState<boolean>(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
+
+  // Update counts when sticks prop changes
+  useEffect(() => {
+    const newTotal = getTotalSticks(sticks);
+    setCurrentSticks(newTotal);
+    setTempCount(newTotal);
+  }, [sticks]);
 
   const handleAdd = () => {
     setTempCount((prev) => prev + 1);
@@ -24,13 +40,80 @@ const StickCounter: React.FC<StickCounterProps> = ({ playerName, sticks }) => {
     const difference = tempCount - currentSticks;
 
     if (difference > 0) {
-      console.log(`Adding ${difference} sticks to ${playerName}`);
-      // TODO: Open the modal to add a comment which will modify the db
+      // Open modal for adding sticks with comment
+      setIsConfirmModalOpen(true);
     } else if (difference < 0) {
-      console.log(`deleting ${Math.abs(difference)} sticks to ${playerName}`);
-      // TODO: Delete the last ${Math.abs(difference)} sticks from the db
+      // Direct removal of sticks (no comment needed)
+      await handleRemoveSticks(Math.abs(difference));
     }
-    setCurrentSticks(tempCount);
+  };
+
+  const handleConfirmAddSticks = async (comment: string) => {
+    const difference = tempCount - currentSticks;
+    if (difference <= 0 || !roomId) return;
+
+    try {
+      // Create new stick entry
+      const newStick: Stick = {
+        createdAt: new Date().toISOString(),
+        comment: comment || undefined,
+        count: difference,
+      };
+
+      // Update local state
+      const updatedSticks = [...sticks, newStick];
+      
+      // Update Firebase
+      if (roomId) {
+        await RoomService.updatePlayerSticks(roomId, player, updatedSticks);
+      }
+      
+      // Call parent update callback
+      onSticksUpdate?.(updatedSticks);
+      
+      setCurrentSticks(tempCount);
+    } catch (error) {
+      console.error("Error adding sticks:", error);
+      // Reset temp count on error
+      setTempCount(currentSticks);
+    }
+  };
+
+  const handleRemoveSticks = async (removeCount: number) => {
+    if (!roomId) return;
+
+    try {
+      // Remove sticks from the end (most recent first)
+      const updatedSticks = [...sticks];
+      let remainingToRemove = removeCount;
+      
+      // Remove from the last entries first
+      for (let i = updatedSticks.length - 1; i >= 0 && remainingToRemove > 0; i--) {
+        const stick = updatedSticks[i];
+        if (stick.count <= remainingToRemove) {
+          remainingToRemove -= stick.count;
+          updatedSticks.splice(i, 1);
+        } else {
+          // Partial removal from this stick
+          stick.count -= remainingToRemove;
+          remainingToRemove = 0;
+        }
+      }
+      
+      // Update Firebase
+      if (roomId) {
+        await RoomService.updatePlayerSticks(roomId, player, updatedSticks);
+      }
+      
+      // Call parent update callback
+      onSticksUpdate?.(updatedSticks);
+      
+      setCurrentSticks(tempCount);
+    } catch (error) {
+      console.error("Error removing sticks:", error);
+      // Reset temp count on error
+      setTempCount(currentSticks);
+    }
   };
 
   const handleOpenLog = () => {
@@ -173,6 +256,15 @@ const StickCounter: React.FC<StickCounterProps> = ({ playerName, sticks }) => {
         onClose={handleCloseLog}
         playerName={playerName}
         sticks={sticks}
+      />
+
+      {/* Confirm Stick Modal */}
+      <ConfirmStickModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={handleConfirmAddSticks}
+        stickCount={tempCount - currentSticks}
+        playerName={playerName}
       />
     </>
   );
