@@ -21,12 +21,12 @@ const ROOMS_COLLECTION = "rooms";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const convertFirestoreToRoom = (doc: any): Room => {
-  const data = doc.data() as Room;
+  const data = doc.data();
   return {
     ...data,
     id: doc.id,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
   } as Room;
 };
 
