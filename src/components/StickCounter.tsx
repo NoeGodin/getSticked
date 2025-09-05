@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Check, History, Minus, Plus } from "lucide-react";
 import StickLog from "./StickLog";
 import ConfirmStickModal from "./ConfirmStickModal";
+import RemoveStickModal from "./RemoveStickModal";
 import type { StickCounterProps } from "../types/ui.types";
 import type { Stick } from "../types/stick.types";
 import { getTotalSticks } from "../utils/helpers.ts";
@@ -20,6 +21,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
   const [tempCount, setTempCount] = useState<number>(totalSticks);
   const [isLogOpen, setIsLogOpen] = useState<boolean>(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState<boolean>(false);
 
   // Update counts when sticks prop changes
   useEffect(() => {
@@ -43,8 +45,8 @@ const StickCounter: React.FC<StickCounterProps> = ({
       // Open modal for adding sticks with comment
       setIsConfirmModalOpen(true);
     } else if (difference < 0) {
-      // Direct removal of sticks (no comment needed)
-      await handleRemoveSticks(Math.abs(difference));
+      // Open modal for removing sticks with comment
+      setIsRemoveModalOpen(true);
     }
   };
 
@@ -79,26 +81,21 @@ const StickCounter: React.FC<StickCounterProps> = ({
     }
   };
 
-  const handleRemoveSticks = async (removeCount: number) => {
-    if (!roomId) return;
+  const handleConfirmRemoveSticks = async (comment: string) => {
+    const difference = currentSticks - tempCount;
+    if (difference <= 0 || !roomId) return;
 
     try {
-      // Remove sticks from the end (most recent first)
-      const updatedSticks = [...sticks];
-      let remainingToRemove = removeCount;
-      
-      // Remove from the last entries first
-      for (let i = updatedSticks.length - 1; i >= 0 && remainingToRemove > 0; i--) {
-        const stick = updatedSticks[i];
-        if (stick.count <= remainingToRemove) {
-          remainingToRemove -= stick.count;
-          updatedSticks.splice(i, 1);
-        } else {
-          // Partial removal from this stick
-          stick.count -= remainingToRemove;
-          remainingToRemove = 0;
-        }
-      }
+      // Create removal entry
+      const removalStick: Stick = {
+        createdAt: new Date().toISOString(),
+        comment: comment || "",
+        count: difference,
+        isRemoved: true,
+      };
+
+      // Add the removal entry to sticks (don't actually remove existing sticks)
+      const updatedSticks = [...sticks, removalStick];
       
       // Update Firebase
       if (roomId) {
@@ -264,6 +261,15 @@ const StickCounter: React.FC<StickCounterProps> = ({
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={handleConfirmAddSticks}
         stickCount={tempCount - currentSticks}
+        playerName={playerName}
+      />
+
+      {/* Remove Stick Modal */}
+      <RemoveStickModal
+        isOpen={isRemoveModalOpen}
+        onClose={() => setIsRemoveModalOpen(false)}
+        onConfirm={handleConfirmRemoveSticks}
+        stickCount={currentSticks - tempCount}
         playerName={playerName}
       />
     </>
