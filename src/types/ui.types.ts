@@ -5,7 +5,7 @@ export interface StickCounterProps {
   playerName: string;
   sticks: Stick[];
   roomId?: string;
-  player: "player1" | "player2";
+  player: string;
   onSticksUpdate?: (newSticks: Stick[]) => void;
 }
 

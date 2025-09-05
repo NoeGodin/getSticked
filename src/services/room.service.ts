@@ -14,7 +14,12 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../utils/firebase";
-import type { CreateRoomForm, JoinRoomForm, Room } from "../types/room.types";
+import type {
+  CreateRoomForm,
+  JoinRoomForm,
+  Player,
+  Room,
+} from "../types/room.types";
 import type { Stick } from "../types/stick.types";
 
 const ROOMS_COLLECTION = "rooms";
@@ -25,24 +30,38 @@ const convertFirestoreToRoom = (doc: any): Room => {
   return {
     ...data,
     id: doc.id,
-    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
-    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+    createdAt:
+      data.createdAt instanceof Timestamp
+        ? data.createdAt.toDate().toISOString()
+        : data.createdAt,
+    updatedAt:
+      data.updatedAt instanceof Timestamp
+        ? data.updatedAt.toDate().toISOString()
+        : data.updatedAt,
   } as Room;
 };
 
 export class RoomService {
   static async createRoom(roomData: CreateRoomForm): Promise<string> {
     try {
+      const players: Player[] = [
+        {
+          id: "player1",
+          name: roomData.player1Name,
+          sticks: [],
+        },
+        {
+          id: "player2",
+          name: roomData.player2Name,
+          sticks: [],
+        },
+      ];
+
       const newRoom: Omit<Room, "updatedAt"> = {
         name: roomData.name,
         secretKey: roomData.secretKey,
         description: roomData.description,
-        player1Name: roomData.player1Name,
-        player2Name: roomData.player2Name,
-        batons: {
-          player1: [],
-          player2: [],
-        },
+        players,
         createdAt: new Date().toISOString(),
       };
 
@@ -91,17 +110,56 @@ export class RoomService {
 
   static async updatePlayerSticks(
     roomId: string,
-    player: "player1" | "player2",
+    playerId: string,
     sticks: Stick[],
   ): Promise<void> {
     try {
+      // Get the current room
+      const room = await RoomService.getRoomById(roomId);
+      if (!room) {
+        throw new Error("Room not found");
+      }
+
+      // Update the specific player's sticks
+      const updatedPlayers = room.players.map((player) =>
+        player.id === playerId ? { ...player, sticks } : player,
+      );
+
       const docRef = doc(db, ROOMS_COLLECTION, roomId);
       await updateDoc(docRef, {
-        [`batons.${player}`]: sticks,
+        players: updatedPlayers,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
       throw new Error(`Erreur lors de la mise à jour des bâtons: ${error}`);
+    }
+  }
+
+  static async addPlayerToRoom(
+    roomId: string,
+    playerName: string,
+  ): Promise<void> {
+    try {
+      const room = await RoomService.getRoomById(roomId);
+      if (!room) {
+        throw new Error("Room not found");
+      }
+
+      const newPlayer: Player = {
+        id: `player${room.players.length + 1}`,
+        name: playerName,
+        sticks: [],
+      };
+
+      const updatedPlayers = [...room.players, newPlayer];
+
+      const docRef = doc(db, ROOMS_COLLECTION, roomId);
+      await updateDoc(docRef, {
+        players: updatedPlayers,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      throw new Error(`Erreur lors de l'ajout du joueur: ${error}`);
     }
   }
 
