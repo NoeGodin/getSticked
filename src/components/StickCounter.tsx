@@ -56,7 +56,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
       // Create new stick entry
       const newStick: Stick = {
         createdAt: new Date().toISOString(),
-        comment: comment || undefined,
+        comment: comment || "",
         count: difference,
       };
 

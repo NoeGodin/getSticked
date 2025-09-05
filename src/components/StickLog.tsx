@@ -72,7 +72,7 @@ const StickLog: React.FC<StickLogProps> = ({
 
                           {/* Comment */}
                           <div className="flex-1">
-                            {stick.comment ? (
+                            {stick.comment.trim() ? (
                               <p className="text-gray-800 text-sm leading-relaxed">
                                 {stick.comment}
                               </p>
