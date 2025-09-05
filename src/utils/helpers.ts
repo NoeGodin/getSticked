@@ -1,5 +1,9 @@
 export const formatShortDate = (isoString: string) => {
+  if (!isoString) return "Date inconnue";
+  
   const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "Date invalide";
+  
   return date.toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
