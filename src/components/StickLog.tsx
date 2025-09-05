@@ -1,7 +1,15 @@
-import React from "react";
-import { Calendar, MessageSquare, X } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Calendar,
+  Eye,
+  EyeOff,
+  MessageSquare,
+  Minus,
+  Plus,
+  X,
+} from "lucide-react";
 import type { StickLogProps } from "../types/ui.types";
-import { formatDate } from "../utils/helpers.ts";
+import { formatDate, getTotalSticks } from "../utils/helpers.ts";
 
 const StickLog: React.FC<StickLogProps> = ({
   isOpen,
@@ -9,9 +17,15 @@ const StickLog: React.FC<StickLogProps> = ({
   playerName,
   sticks,
 }) => {
+  const [showRemovedSticks, setShowRemovedSticks] = useState<boolean>(false);
+
   if (!isOpen) return null;
 
-  const totalSticks = sticks.reduce((sum, stick) => sum + stick.count, 0);
+  const totalSticks = getTotalSticks(sticks);
+
+  const filteredSticks = showRemovedSticks
+    ? sticks
+    : sticks.filter((stick) => !stick.isRemoved);
 
   return (
     <>
@@ -34,25 +48,66 @@ const StickLog: React.FC<StickLogProps> = ({
                 Total: {totalSticks} bâton{totalSticks > 1 ? "s" : ""}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-              title="Fermer"
-            >
-              <X size={24} className="text-gray-600" />
-            </button>
+            <div className="flex items-center space-x-4">
+              {/* Toggle for showing removed sticks */}
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showRemovedSticks}
+                    onChange={(e) => setShowRemovedSticks(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      showRemovedSticks ? "bg-red-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        showRemovedSticks ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </div>
+                  <span className="ml-2 text-sm text-gray-600 flex items-center">
+                    {showRemovedSticks ? (
+                      <>
+                        <EyeOff size={16} className="mr-1" />
+                        Masquer suppressions
+                      </>
+                    ) : (
+                      <>
+                        <Eye size={16} className="mr-1" />
+                        Voir suppressions
+                      </>
+                    )}
+                  </span>
+                </label>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                title="Fermer"
+              >
+                <X size={24} className="text-gray-600" />
+              </button>
+            </div>
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            {sticks.length === 0 ? (
+            {filteredSticks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                 <MessageSquare size={48} className="mb-4 opacity-50" />
-                <p className="text-lg">Aucun bâton enregistré</p>
+                <p className="text-lg">
+                  {showRemovedSticks
+                    ? "Aucun bâton ou suppression enregistrés"
+                    : "Aucun bâton enregistré"}
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {sticks
+                {filteredSticks
                   .sort(
                     (a, b) =>
                       new Date(b.createdAt).getTime() -
@@ -61,13 +116,28 @@ const StickLog: React.FC<StickLogProps> = ({
                   .map((stick, index) => (
                     <div
                       key={index}
-                      className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow duration-200"
+                      className={`rounded-lg p-4 border hover:shadow-md transition-shadow duration-200 ${
+                        stick.isRemoved
+                          ? "bg-red-50 border-red-200"
+                          : "bg-gray-50 border-gray-200"
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
-                          {/* Stick count badge */}
-                          <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold min-w-12 text-center">
-                            {stick.count}
+                          {/* Action icon and count badge */}
+                          <div className="flex items-center space-x-2">
+                            {stick.isRemoved ? (
+                              <Minus size={16} className="text-red-600" />
+                            ) : (
+                              <Plus size={16} className="text-blue-600" />
+                            )}
+                            <div
+                              className={`text-white px-3 py-1 rounded-full text-sm font-semibold min-w-12 text-center ${
+                                stick.isRemoved ? "bg-red-500" : "bg-blue-500"
+                              }`}
+                            >
+                              {stick.count}
+                            </div>
                           </div>
 
                           {/* Comment */}
@@ -98,6 +168,18 @@ const StickLog: React.FC<StickLogProps> = ({
 
           {/* Footer */}
           <div className="p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-600">
+                {showRemovedSticks && (
+                  <span className="flex items-center">
+                    <Plus size={14} className="text-blue-600 mr-1" />
+                    Ajouts •
+                    <Minus size={14} className="text-red-600 mx-1" />
+                    Suppressions
+                  </span>
+                )}
+              </div>
+            </div>
             <button
               onClick={onClose}
               className="w-full py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"

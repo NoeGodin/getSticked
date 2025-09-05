@@ -18,6 +18,8 @@ export const formatDate = (isoString: string) => {
   });
 };
 
-export const getTotalSticks = (sticks: { count: number }[]) => {
-  return sticks.reduce((total, stick) => total + stick.count, 0);
+export const getTotalSticks = (sticks: { count: number; isRemoved?: boolean }[]) => {
+  return sticks.reduce((total, stick) => {
+    return stick.isRemoved ? total - stick.count : total + stick.count;
+  }, 0);
 };
