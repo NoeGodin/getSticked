@@ -123,8 +123,7 @@ export const mockCreateRoomForm: CreateRoomForm = {
   name: "Nouveau Salon",
   secretKey: "monsecret123",
   description: "Description de test",
-  player1Name: "Joueur 1",
-  player2Name: "Joueur 2",
+  playerNames: ["Joueur 1", "Joueur 2"],
 };
 
 export const mockJoinRoomForm: JoinRoomForm = {

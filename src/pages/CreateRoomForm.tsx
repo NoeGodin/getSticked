@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Key, User, Users } from "lucide-react";
+import { ArrowLeft, FileText, Key, Plus, Users, X } from "lucide-react";
 import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types";
 import type { UserSession } from "../types/session.types";
-import { verifRoomId } from "../utils/form.ts";
 import { RoomService } from "../services/room.service.ts";
 
 interface Props {
@@ -15,11 +14,10 @@ export default function CreateRoomForm({ setUserSession }: Props) {
     name: "",
     secretKey: "",
     description: "",
-    player1Name: "",
-    player2Name: "",
+    playerNames: ["", ""], // Start with 2 players minimum
   });
 
-  const [errors, setErrors] = useState<Partial<CreateRoomFormData>>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const navigate = useNavigate();
 
   const handleInputChange = (
@@ -35,20 +33,83 @@ export default function CreateRoomForm({ setUserSession }: Props) {
     if (errors[field]) {
       setErrors((prev) => ({
         ...prev,
-        [field]: undefined,
+        [field]: "",
       }));
     }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<CreateRoomFormData> = verifRoomId(formData, {});
+  const handlePlayerNameChange = (index: number, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      playerNames: prev.playerNames.map((name, i) => 
+        i === index ? value : name
+      ),
+    }));
 
-    if (!formData.player1Name.trim()) {
-      newErrors.player1Name = "Le nom du joueur 1 est requis";
+    // Clear error for this player
+    const errorKey = `player${index}`;
+    if (errors[errorKey]) {
+      setErrors((prev) => ({
+        ...prev,
+        [errorKey]: "",
+      }));
+    }
+  };
+
+  const addPlayer = () => {
+    if (formData.playerNames.length < 8) { // Max 8 players
+      setFormData((prev) => ({
+        ...prev,
+        playerNames: [...prev.playerNames, ""],
+      }));
+    }
+  };
+
+  const removePlayer = (index: number) => {
+    if (formData.playerNames.length > 2) { // Minimum 2 players
+      setFormData((prev) => ({
+        ...prev,
+        playerNames: prev.playerNames.filter((_, i) => i !== index),
+      }));
+      
+      // Clear any error for removed player
+      const errorKey = `player${index}`;
+      if (errors[errorKey]) {
+        setErrors((prev) => ({
+          ...prev,
+          [errorKey]: "",
+        }));
+      }
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: { [key: string]: string } = {};
+    
+    // Validate basic room info
+    if (!formData.name.trim()) {
+      newErrors.name = "Le nom du salon est requis";
+    }
+    if (!formData.secretKey.trim()) {
+      newErrors.secretKey = "La clé secrète est requise";
     }
 
-    if (!formData.player2Name.trim()) {
-      newErrors.player2Name = "Le nom du joueur 2 est requis";
+    // Validate player names
+    formData.playerNames.forEach((name, index) => {
+      if (!name.trim()) {
+        newErrors[`player${index}`] = `Le nom du joueur ${index + 1} est requis`;
+      }
+    });
+
+    // Check for duplicate names
+    const names = formData.playerNames.filter(name => name.trim());
+    const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
+    if (duplicates.length > 0) {
+      formData.playerNames.forEach((name, index) => {
+        if (duplicates.includes(name)) {
+          newErrors[`player${index}`] = "Ce nom de joueur est déjà utilisé";
+        }
+      });
     }
 
     setErrors(newErrors);
@@ -185,51 +246,55 @@ export default function CreateRoomForm({ setUserSession }: Props) {
           </div>
 
           {/* Player Names */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <User size={16} className="inline mr-2" />
-                Joueur 1
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-sm font-medium text-gray-700">
+                <Users size={16} className="inline mr-2" />
+                Joueurs ({formData.playerNames.length})
               </label>
-              <input
-                type="text"
-                value={formData.player1Name}
-                onChange={(e) =>
-                  handleInputChange("player1Name", e.target.value)
-                }
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.player1Name ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="Ex: Noé"
-              />
-              {errors.player1Name && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.player1Name}
-                </p>
+              {formData.playerNames.length < 8 && (
+                <button
+                  type="button"
+                  onClick={addPlayer}
+                  className="flex items-center space-x-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm transition-colors"
+                >
+                  <Plus size={14} />
+                  <span>Ajouter</span>
+                </button>
               )}
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <User size={16} className="inline mr-2" />
-                Joueur 2
-              </label>
-              <input
-                type="text"
-                value={formData.player2Name}
-                onChange={(e) =>
-                  handleInputChange("player2Name", e.target.value)
-                }
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.player2Name ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="Ex: Alex"
-              />
-              {errors.player2Name && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.player2Name}
-                </p>
-              )}
+            
+            <div className="space-y-3">
+              {formData.playerNames.map((playerName, index) => (
+                <div key={index} className="flex items-start space-x-2">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={playerName}
+                      onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors[`player${index}`] ? "border-red-500" : "border-gray-300"
+                      }`}
+                      placeholder={`Joueur ${index + 1}`}
+                    />
+                    {errors[`player${index}`] && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors[`player${index}`]}
+                      </p>
+                    )}
+                  </div>
+                  {formData.playerNames.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => removePlayer(index)}
+                      className="mt-2 p-1 text-red-500 hover:text-red-700 transition-colors"
+                      title="Supprimer ce joueur"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
