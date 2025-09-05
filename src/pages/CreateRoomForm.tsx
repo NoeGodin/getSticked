@@ -42,8 +42,8 @@ export default function CreateRoomForm({ setUserSession }: Props) {
   const handlePlayerNameChange = (index: number, value: string) => {
     setFormData((prev) => ({
       ...prev,
-      playerNames: prev.playerNames.map((name, i) => 
-        i === index ? value : name
+      playerNames: prev.playerNames.map((name, i) =>
+        i === index ? value : name,
       ),
     }));
 
@@ -58,7 +58,8 @@ export default function CreateRoomForm({ setUserSession }: Props) {
   };
 
   const addPlayer = () => {
-    if (formData.playerNames.length < 8) { // Max 8 players
+    if (formData.playerNames.length < 8) {
+      // Max 8 players
       setFormData((prev) => ({
         ...prev,
         playerNames: [...prev.playerNames, ""],
@@ -67,12 +68,13 @@ export default function CreateRoomForm({ setUserSession }: Props) {
   };
 
   const removePlayer = (index: number) => {
-    if (formData.playerNames.length > 2) { // Minimum 2 players
+    if (formData.playerNames.length > 2) {
+      // Minimum 2 players
       setFormData((prev) => ({
         ...prev,
         playerNames: prev.playerNames.filter((_, i) => i !== index),
       }));
-      
+
       // Clear any error for removed player
       const errorKey = `player${index}`;
       if (errors[errorKey]) {
@@ -86,7 +88,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
-    
+
     // Validate basic room info
     if (!formData.name.trim()) {
       newErrors.name = "Le nom du salon est requis";
@@ -98,13 +100,16 @@ export default function CreateRoomForm({ setUserSession }: Props) {
     // Validate player names
     formData.playerNames.forEach((name, index) => {
       if (!name.trim()) {
-        newErrors[`player${index}`] = `Le nom du joueur ${index + 1} est requis`;
+        newErrors[`player${index}`] =
+          `Le nom du joueur ${index + 1} est requis`;
       }
     });
 
     // Check for duplicate names
-    const names = formData.playerNames.filter(name => name.trim());
-    const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
+    const names = formData.playerNames.filter((name) => name.trim());
+    const duplicates = names.filter(
+      (name, index) => names.indexOf(name) !== index,
+    );
     if (duplicates.length > 0) {
       formData.playerNames.forEach((name, index) => {
         if (duplicates.includes(name)) {
@@ -202,7 +207,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="Ex: NoeXAlex:Biere"
+              placeholder="Ex: Qui boit le plus de bières ?"
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -271,7 +276,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
                 </button>
               )}
             </div>
-            
+
             <div className="space-y-3">
               {formData.playerNames.map((playerName, index) => (
                 <div key={index} className="flex items-start space-x-2">
@@ -279,9 +284,13 @@ export default function CreateRoomForm({ setUserSession }: Props) {
                     <input
                       type="text"
                       value={playerName}
-                      onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+                      onChange={(e) =>
+                        handlePlayerNameChange(index, e.target.value)
+                      }
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[`player${index}`] ? "border-red-500" : "border-gray-300"
+                        errors[`player${index}`]
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                       placeholder={`Joueur ${index + 1}`}
                     />
@@ -320,11 +329,11 @@ export default function CreateRoomForm({ setUserSession }: Props) {
               disabled={isSubmitting}
               className={`flex-1 px-4 py-2 text-white rounded-md transition-colors ${
                 isSubmitting
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-500 hover:bg-blue-600'
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-500 hover:bg-blue-600"
               }`}
             >
-              {isSubmitting ? 'Création...' : 'Créer le Salon'}
+              {isSubmitting ? "Création..." : "Créer le Salon"}
             </button>
           </div>
         </form>

@@ -1,12 +1,13 @@
 // noinspection JSIgnoredPromiseFromCall
 
 import React, { useEffect, useState } from "react";
-import { Share2, Check } from "lucide-react";
+import { Share2, Check, Settings } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import StickCounter from "./StickCounter.tsx";
 import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
+import RoomSettings from "./RoomSettings.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { UserSession } from "../types/session.types";
 import type { Room, Player } from "../types/room.types";
@@ -27,7 +28,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [viewMode, setViewMode] = useState<'multi' | 'single' | 'list'>('multi');
+  const [viewMode, setViewMode] = useState<'multi' | 'single' | 'list' | 'settings'>('multi');
 
   // Load room data on component mount
   useEffect(() => {
@@ -179,6 +180,18 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     setViewMode(room && room.players.length > 4 ? 'list' : 'multi');
   };
 
+  const handleShowSettings = () => {
+    setViewMode('settings');
+  };
+
+  const handleBackFromSettings = () => {
+    setViewMode(room && room.players.length > 4 ? 'list' : 'multi');
+  };
+
+  const handleRoomUpdate = (updatedRoom: Room) => {
+    setRoom(updatedRoom);
+  };
+
   // Single player view when selected
   if (viewMode === 'single' && selectedPlayer && room) {
     return (
@@ -188,6 +201,17 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         room={room}
         onBack={handleBackToList}
         onSticksUpdate={handleSticksUpdate}
+      />
+    );
+  }
+
+  // Settings view
+  if (viewMode === 'settings' && room) {
+    return (
+      <RoomSettings
+        room={room}
+        onBack={handleBackFromSettings}
+        onRoomUpdate={handleRoomUpdate}
       />
     );
   }
@@ -231,6 +255,14 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         </div>
 
         <div className="flex items-center space-x-2">
+          <button
+            onClick={handleShowSettings}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
+            title="Paramètres de la room"
+          >
+            <Settings size={16} />
+            <span>Paramètres</span>
+          </button>
           <button
             onClick={handleShareInvitation}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
