@@ -20,8 +20,7 @@ export interface CreateRoomForm {
   name: string;
   secretKey: string;
   description: string;
-  player1Name: string;
-  player2Name: string;
+  playerNames: string[];
 }
 
 export interface JoinRoomForm {

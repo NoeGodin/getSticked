@@ -44,18 +44,11 @@ const convertFirestoreToRoom = (doc: any): Room => {
 export class RoomService {
   static async createRoom(roomData: CreateRoomForm): Promise<string> {
     try {
-      const players: Player[] = [
-        {
-          id: "player1",
-          name: roomData.player1Name,
-          sticks: [],
-        },
-        {
-          id: "player2",
-          name: roomData.player2Name,
-          sticks: [],
-        },
-      ];
+      const players: Player[] = roomData.playerNames.map((name, index) => ({
+        id: `player${index + 1}`,
+        name: name.trim(),
+        sticks: [],
+      }));
 
       const newRoom: Omit<Room, "updatedAt"> = {
         name: roomData.name,

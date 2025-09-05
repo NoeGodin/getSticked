@@ -4,9 +4,11 @@ import React, { useEffect, useState } from "react";
 import { Share2, Check } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import StickCounter from "./StickCounter.tsx";
+import SinglePlayerView from "./SinglePlayerView.tsx";
+import PlayerListView from "./PlayerListView.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { UserSession } from "../types/session.types";
-import type { Room } from "../types/room.types";
+import type { Room, Player } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { copyInvitationLink } from "../utils/invitation.ts";
 
@@ -23,6 +25,8 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [viewMode, setViewMode] = useState<'multi' | 'single' | 'list'>('multi');
 
   // Load room data on component mount
   useEffect(() => {
@@ -119,6 +123,17 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     loadRoomData();
   }, [roomId, userSession.currentRoomName, userSession.joinedRooms, userSession, navigate]);
 
+  // Determine view mode based on number of players
+  useEffect(() => {
+    if (room) {
+      if (room.players.length > 4) {
+        setViewMode('list');
+      } else {
+        setViewMode('multi');
+      }
+    }
+  }, [room]);
+
   const handleSticksUpdate = async (
     playerId: string,
     newSticks: Stick[],
@@ -152,6 +167,28 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
       setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     }
   };
+
+  const handlePlayerSelect = (player: Player) => {
+    setSelectedPlayer(player);
+    setViewMode('single');
+  };
+
+  const handleBackToList = () => {
+    setSelectedPlayer(null);
+    setViewMode(room && room.players.length > 4 ? 'list' : 'multi');
+  };
+
+  // Single player view when selected
+  if (viewMode === 'single' && selectedPlayer) {
+    return (
+      <SinglePlayerView
+        player={selectedPlayer}
+        roomId={room?.id}
+        onBack={handleBackToList}
+        onSticksUpdate={handleSticksUpdate}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -223,23 +260,38 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
       </div>
 
       {/* Game Area */}
-      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
-        <div className="grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4" 
-             style={{ gridTemplateColumns: `repeat(${Math.min(room.players.length, 3)}, 1fr)` }}>
-          {room.players.map((player) => (
-            <StickCounter
-              key={player.id}
-              playerName={player.name}
-              sticks={player.sticks}
-              roomId={room.id}
-              player={player.id}
-              onSticksUpdate={(newSticks) =>
-                handleSticksUpdate(player.id, newSticks)
-              }
-            />
-          ))}
+      {viewMode === 'list' ? (
+        // Player list view for 4+ players
+        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4">
+          <PlayerListView
+            players={room.players}
+            onPlayerClick={handlePlayerSelect}
+          />
         </div>
-      </div>
+      ) : (
+        // Multi-counter view for 2-4 players
+        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
+          <div className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
+            room.players.length === 1 ? 'grid-cols-1 max-w-md' :
+            room.players.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+            room.players.length === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
+            'grid-cols-1 md:grid-cols-2'
+          }`}>
+            {room.players.map((player) => (
+              <StickCounter
+                key={player.id}
+                playerName={player.name}
+                sticks={player.sticks}
+                roomId={room.id}
+                player={player.id}
+                onSticksUpdate={(newSticks) =>
+                  handleSticksUpdate(player.id, newSticks)
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
