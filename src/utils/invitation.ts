@@ -1,6 +1,8 @@
 export const generateInvitationLink = (roomId: string): string => {
-  const baseUrl = window.location.origin;
-  return `${baseUrl}/?roomId=${encodeURIComponent(roomId)}`;
+  const origin = window.location.origin;
+  const basePath = import.meta.env.BASE_URL; // This will be '/getSticked/' in production
+
+  return `${origin}${basePath}?roomId=${encodeURIComponent(roomId)}`;
 };
 
 export const extractRoomIdFromUrl = (): string | null => {
