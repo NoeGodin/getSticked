@@ -64,7 +64,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   }, [userSession.currentRoomName, userSession.joinedRooms, navigate]);
 
   const handleSticksUpdate = async (
-    player: "player1" | "player2",
+    playerId: string,
     newSticks: Stick[],
   ) => {
     if (!room?.id) return;
@@ -75,10 +75,11 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         if (!prevRoom) return prevRoom;
         return {
           ...prevRoom,
-          batons: {
-            ...prevRoom.batons,
-            [player]: newSticks,
-          },
+          players: prevRoom.players.map(player =>
+            player.id === playerId
+              ? { ...player, sticks: newSticks }
+              : player
+          ),
         };
       });
     } catch (error) {
@@ -134,28 +135,20 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
 
       {/* Game Area */}
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4">
-          {/* Player 1 */}
-          <StickCounter
-            playerName={room.player1Name}
-            sticks={room.batons.player1}
-            roomId={room.id}
-            player="player1"
-            onSticksUpdate={(newSticks) =>
-              handleSticksUpdate("player1", newSticks)
-            }
-          />
-
-          {/* Player 2 */}
-          <StickCounter
-            playerName={room.player2Name}
-            sticks={room.batons.player2}
-            roomId={room.id}
-            player="player2"
-            onSticksUpdate={(newSticks) =>
-              handleSticksUpdate("player2", newSticks)
-            }
-          />
+        <div className="grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4" 
+             style={{ gridTemplateColumns: `repeat(${Math.min(room.players.length, 3)}, 1fr)` }}>
+          {room.players.map((player) => (
+            <StickCounter
+              key={player.id}
+              playerName={player.name}
+              sticks={player.sticks}
+              roomId={room.id}
+              player={player.id}
+              onSticksUpdate={(newSticks) =>
+                handleSticksUpdate(player.id, newSticks)
+              }
+            />
+          ))}
         </div>
       </div>
     </div>

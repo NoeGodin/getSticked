@@ -12,24 +12,24 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   const navigate = useNavigate();
-  const fetchRoomData = async (roomName: string): Promise<Room | null> => {
-    try {
-      const joinedRoom = userSession.joinedRooms.find(
-        (jr) => jr.name === roomName,
-      );
-      if (!joinedRoom) return null;
-
-      return await RoomService.joinRoom({
-        name: joinedRoom.name,
-        secretKey: joinedRoom.secretKey,
-      });
-    } catch (error) {
-      console.error(`Error fetching room ${roomName}:`, error);
-      return null;
-    }
-  };
-
   useEffect(() => {
+    const fetchRoomData = async (roomName: string): Promise<Room | null> => {
+      try {
+        const joinedRoom = userSession.joinedRooms.find(
+          (jr) => jr.name === roomName,
+        );
+        if (!joinedRoom) return null;
+
+        return await RoomService.joinRoom({
+          name: joinedRoom.name,
+          secretKey: joinedRoom.secretKey,
+        });
+      } catch (error) {
+        console.error(`Error fetching room ${roomName}:`, error);
+        return null;
+      }
+    };
+
     const loadRooms = async () => {
       setLoading(true);
       const roomPromises = userSession.joinedRooms.map((joinedRoom) =>
@@ -66,9 +66,16 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   };
 
   const calculateTotalSticks = (room: Room) => {
-    const player1Total = getTotalSticks(room.batons.player1);
-    const player2Total = getTotalSticks(room.batons.player2);
-    return { player1Total, player2Total, total: player1Total + player2Total };
+    const playerTotals = room.players.map(player => ({
+      id: player.id,
+      name: player.name,
+      total: getTotalSticks(player.sticks)
+    }));
+    
+    return {
+      players: playerTotals,
+      total: playerTotals.reduce((sum, player) => sum + player.total, 0),
+    };
   };
 
   return (
@@ -171,22 +178,16 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
                     )}
 
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-700 font-medium">
-                          {room.player1Name}
-                        </span>
-                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {stickCounts.player1Total} bâtons
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-700 font-medium">
-                          {room.player2Name}
-                        </span>
-                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {stickCounts.player2Total} bâtons
-                        </span>
-                      </div>
+                      {stickCounts.players.map((player) => (
+                        <div key={player.id} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700 font-medium">
+                            {player.name}
+                          </span>
+                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                            {player.total} bâtons
+                          </span>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
