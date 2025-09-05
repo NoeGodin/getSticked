@@ -84,7 +84,7 @@ export class RoomService {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        return null; // Room non trouvée ou mauvais credentials
+        return null; // Room not found or invalid credentials
       }
 
       const doc = querySnapshot.docs[0];

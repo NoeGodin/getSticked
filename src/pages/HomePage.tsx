@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Calendar, MessageSquare, Plus, Users } from "lucide-react";
+import { Calendar, Crown, MessageSquare, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../types/room.types";
 import type { HomePageProps } from "../types/ui.types.ts";
@@ -72,8 +72,18 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
       total: getTotalSticks(player.sticks)
     }));
     
+    // Sort by stick count descending
+    const sortedPlayers = playerTotals.sort((a, b) => b.total - a.total);
+    
+    // Mark player(s) with the most sticks
+    const maxSticks = sortedPlayers.length > 0 ? sortedPlayers[0].total : 0;
+    const playersWithLeaderInfo = sortedPlayers.map(player => ({
+      ...player,
+      isLeader: player.total === maxSticks && maxSticks > 0
+    }));
+    
     return {
-      players: playerTotals,
+      players: playersWithLeaderInfo,
       total: playerTotals.reduce((sum, player) => sum + player.total, 0),
     };
   };
@@ -149,7 +159,14 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
               </div>
             </div>
           ) : (
-            rooms.map((room) => {
+            rooms
+              .sort((a, b) => {
+                // Sort by modification date descending (most recent first)
+                const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt).getTime();
+                const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt).getTime();
+                return dateB - dateA;
+              })
+              .map((room) => {
               const stickCounts = calculateTotalSticks(room);
               const joinedRoom = userSession.joinedRooms.find(
                 (jr) => jr.name === room.name,
@@ -180,10 +197,19 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
                     <div className="space-y-2 mb-4">
                       {stickCounts.players.map((player) => (
                         <div key={player.id} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-700 font-medium">
-                            {player.name}
-                          </span>
-                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                          <div className="flex items-center space-x-2">
+                            {player.isLeader && (
+                              <Crown size={14} className="text-yellow-500 flex-shrink-0" />
+                            )}
+                            <span className="text-gray-700 font-medium">
+                              {player.name}
+                            </span>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            player.isLeader 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
                             {player.total} bâtons
                           </span>
                         </div>
