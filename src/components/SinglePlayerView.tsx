@@ -1,12 +1,14 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
 import StickCounter from "./StickCounter.tsx";
-import type { Player } from "../types/room.types";
+import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
+import type { Player, Room } from "../types/room.types";
 import type { Stick } from "../types/stick.types";
 
 interface SinglePlayerViewProps {
   player: Player;
   roomId?: string;
+  room: Room;
   onBack: () => void;
   onSticksUpdate: (playerId: string, newSticks: Stick[]) => void;
 }
@@ -14,6 +16,7 @@ interface SinglePlayerViewProps {
 const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
   player,
   roomId,
+  room,
   onBack,
   onSticksUpdate,
 }) => {
@@ -36,17 +39,23 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
         <div /> {/* Spacer for centering */}
       </div>
 
-      {/* Single Player Counter */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
-        <div className="w-full max-w-md">
-          <StickCounter
-            playerName={player.name}
-            sticks={player.sticks}
-            roomId={roomId}
-            player={player.id}
-            onSticksUpdate={(newSticks) => onSticksUpdate(player.id, newSticks)}
-          />
+      {/* Content Area */}
+      <div className="flex flex-col min-h-[calc(100vh-80px)]">
+        {/* Single Player Counter */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-md">
+            <StickCounter
+              playerName={player.name}
+              sticks={player.sticks}
+              roomId={roomId}
+              player={player.id}
+              onSticksUpdate={(newSticks) => onSticksUpdate(player.id, newSticks)}
+            />
+          </div>
         </div>
+
+        {/* History Widget */}
+        <RoomHistoryWidget room={room} />
       </div>
     </div>
   );
