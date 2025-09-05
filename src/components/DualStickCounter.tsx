@@ -1,12 +1,14 @@
 // noinspection JSIgnoredPromiseFromCall
 
 import React, { useEffect, useState } from "react";
+import { Share2, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import StickCounter from "./StickCounter.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { UserSession } from "../types/session.types";
 import type { Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
+import { copyInvitationLink } from "../utils/invitation.ts";
 
 interface DualStickCounterProps {
   userSession: UserSession;
@@ -19,6 +21,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
 
   // Load room data on component mount
   useEffect(() => {
@@ -87,6 +90,16 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     }
   };
 
+  const handleShareInvitation = async () => {
+    if (!room?.id) return;
+    
+    const success = await copyInvitationLink(room.id);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -125,12 +138,35 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
           )}
         </div>
 
-        <button
-          onClick={() => navigate("/")}
-          className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
-        >
-          Retour
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleShareInvitation}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+              copied 
+                ? 'bg-green-500 text-white' 
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+            title="Partager le lien d'invitation"
+          >
+            {copied ? (
+              <>
+                <Check size={16} />
+                <span>Copié !</span>
+              </>
+            ) : (
+              <>
+                <Share2 size={16} />
+                <span>Inviter</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+          >
+            Retour
+          </button>
+        </div>
       </div>
 
       {/* Game Area */}
