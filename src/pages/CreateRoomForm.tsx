@@ -18,6 +18,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
 
   const handleInputChange = (
@@ -128,8 +129,11 @@ export default function CreateRoomForm({ setUserSession }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) return; // Prevent double submission
+
     if (validateForm()) {
       try {
+        setIsSubmitting(true);
         const roomId = await RoomService.createRoom(formData);
 
         const updateSession = (prev: UserSession) => ({
@@ -158,7 +162,11 @@ export default function CreateRoomForm({ setUserSession }: Props) {
       } catch (error) {
         console.error("Error creating room:", error);
         setErrors({ name: "Erreur lors de la création du salon" });
+      } finally {
+        setIsSubmitting(false);
       }
+    } else {
+      setIsSubmitting(false);
     }
   };
 
@@ -309,9 +317,14 @@ export default function CreateRoomForm({ setUserSession }: Props) {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+              disabled={isSubmitting}
+              className={`flex-1 px-4 py-2 text-white rounded-md transition-colors ${
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              }`}
             >
-              Créer le Salon
+              {isSubmitting ? 'Création...' : 'Créer le Salon'}
             </button>
           </div>
         </form>
