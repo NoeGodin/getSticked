@@ -246,47 +246,53 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b px-4 py-2 flex justify-between items-center">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-800">{room.name}</h1>
+      <div className="bg-white shadow-sm border-b px-3 py-2">
+        {/* Room name and description */}
+        <div className="mb-2">
+          <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">{room.name}</h1>
           {room.description && (
-            <p className="text-sm text-gray-600 mt-1">{room.description}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2 break-words">
+              {room.description}
+            </p>
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleShowSettings}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
-            title="Paramètres de la room"
-          >
-            <Settings size={16} />
-            <span>Paramètres</span>
-          </button>
-          <button
-            onClick={handleShareInvitation}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-              copied 
-                ? 'bg-green-500 text-white' 
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
-            title="Partager le lien d'invitation"
-          >
-            {copied ? (
-              <>
-                <Check size={16} />
-                <span>Copié !</span>
-              </>
-            ) : (
-              <>
-                <Share2 size={16} />
-                <span>Inviter</span>
-              </>
-            )}
-          </button>
+        {/* Action buttons */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-1">
+            <button
+              onClick={handleShowSettings}
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs sm:text-sm transition-colors"
+              title="Paramètres de la room"
+            >
+              <Settings size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Paramètres</span>
+            </button>
+            <button
+              onClick={handleShareInvitation}
+              className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm transition-colors ${
+                copied 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+              title="Partager le lien d'invitation"
+            >
+              {copied ? (
+                <>
+                  <Check size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Copié !</span>
+                </>
+              ) : (
+                <>
+                  <Share2 size={14} className="sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Inviter</span>
+                </>
+              )}
+            </button>
+          </div>
           <button
             onClick={() => navigate("/")}
-            className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+            className="px-2 sm:px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs sm:text-sm transition-colors"
           >
             Retour
           </button>
