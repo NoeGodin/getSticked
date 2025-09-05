@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import StickCounter from "./StickCounter.tsx";
 import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
+import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { UserSession } from "../types/session.types";
 import type { Room, Player } from "../types/room.types";
@@ -179,11 +180,12 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   };
 
   // Single player view when selected
-  if (viewMode === 'single' && selectedPlayer) {
+  if (viewMode === 'single' && selectedPlayer && room) {
     return (
       <SinglePlayerView
         player={selectedPlayer}
-        roomId={room?.id}
+        roomId={room.id}
+        room={room}
         onBack={handleBackToList}
         onSticksUpdate={handleSticksUpdate}
       />
@@ -260,38 +262,43 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
       </div>
 
       {/* Game Area */}
-      {viewMode === 'list' ? (
-        // Player list view for 4+ players
-        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4">
-          <PlayerListView
-            players={room.players}
-            onPlayerClick={handlePlayerSelect}
-          />
-        </div>
-      ) : (
-        // Multi-counter view for 2-4 players
-        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
-          <div className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
-            room.players.length === 1 ? 'grid-cols-1 max-w-md' :
-            room.players.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-            room.players.length === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-            'grid-cols-1 md:grid-cols-2'
-          }`}>
-            {room.players.map((player) => (
-              <StickCounter
-                key={player.id}
-                playerName={player.name}
-                sticks={player.sticks}
-                roomId={room.id}
-                player={player.id}
-                onSticksUpdate={(newSticks) =>
-                  handleSticksUpdate(player.id, newSticks)
-                }
-              />
-            ))}
+      <div className="flex flex-col min-h-[calc(100vh-80px)]">
+        {viewMode === 'list' ? (
+          // Player list view for 4+ players
+          <div className="flex-1 flex items-center justify-center p-4">
+            <PlayerListView
+              players={room.players}
+              onPlayerClick={handlePlayerSelect}
+            />
           </div>
-        </div>
-      )}
+        ) : (
+          // Multi-counter view for 2-4 players
+          <div className="flex-1 flex items-center justify-center">
+            <div className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
+              room.players.length === 1 ? 'grid-cols-1 max-w-md' :
+              room.players.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+              room.players.length === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
+              'grid-cols-1 md:grid-cols-2'
+            }`}>
+              {room.players.map((player) => (
+                <StickCounter
+                  key={player.id}
+                  playerName={player.name}
+                  sticks={player.sticks}
+                  roomId={room.id}
+                  player={player.id}
+                  onSticksUpdate={(newSticks) =>
+                    handleSticksUpdate(player.id, newSticks)
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* History Widget */}
+        <RoomHistoryWidget room={room} />
+      </div>
     </div>
   );
 };
