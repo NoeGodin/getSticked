@@ -88,7 +88,12 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
 
         setUserSession(updatedSession);
 
-        navigate("/game");
+        // Navigate to the room using its ID if available
+        if (room.id) {
+          navigate(`/room/${room.id}`);
+        } else {
+          navigate("/game");
+        }
       } catch (error) {
         console.error("Error joining room:", error);
         setErrors({ name: "Erreur lors de la connexion au salon" });

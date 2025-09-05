@@ -69,7 +69,7 @@ export default function CreateRoomForm({ setUserSession }: Props) {
 
     if (validateForm()) {
       try {
-        await RoomService.createRoom(formData);
+        const roomId = await RoomService.createRoom(formData);
 
         const updateSession = (prev: UserSession) => ({
           ...prev,
@@ -92,7 +92,8 @@ export default function CreateRoomForm({ setUserSession }: Props) {
         ) as UserSession;
         setUserSession(updateSession(currentSession));
 
-        navigate("/game");
+        // Navigate to the new room using its ID
+        navigate(`/room/${roomId}`);
       } catch (error) {
         console.error("Error creating room:", error);
         setErrors({ name: "Erreur lors de la création du salon" });
