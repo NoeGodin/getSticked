@@ -62,7 +62,12 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
       currentRoomName: room.name,
     });
 
-    navigate("/game");
+    // Use room ID if available, fallback to legacy /game route
+    if (room.id) {
+      navigate(`/room/${room.id}`);
+    } else {
+      navigate("/game");
+    }
   };
 
   const calculateTotalSticks = (room: Room) => {

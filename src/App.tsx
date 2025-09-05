@@ -73,8 +73,8 @@ function App() {
             // Clear the roomId from URL
             clearRoomIdFromUrl();
             
-            // Navigate to game (we'll need to handle this with a flag)
-            window.location.hash = '/game';
+            // Navigate to game using room ID
+            window.location.hash = `/room/${roomId}`;
             
           } else {
             console.error('Room not found with ID:', roomId);
@@ -150,7 +150,18 @@ function App() {
           element={<JoinRoomForm setUserSession={saveUserSession} />}
         />
 
-        {/* Game */}
+        {/* Game - with room ID parameter */}
+        <Route
+          path="/room/:roomId"
+          element={
+            <DualStickCounter
+              userSession={userSession}
+              getCurrentRoom={getCurrentRoom}
+            />
+          }
+        />
+
+        {/* Legacy game route redirect */}
         <Route
           path="/game"
           element={

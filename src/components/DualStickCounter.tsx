@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Share2, Check } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import StickCounter from "./StickCounter.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { UserSession } from "../types/session.types";
@@ -18,6 +18,7 @@ interface DualStickCounterProps {
 
 const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   const navigate = useNavigate();
+  const { roomId } = useParams<{ roomId: string }>();
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,52 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   // Load room data on component mount
   useEffect(() => {
     const loadRoomData = async () => {
+      // Priority 1: Try to load from URL parameter (roomId)
+      if (roomId) {
+        try {
+          setLoading(true);
+          setError(null);
+
+          const roomData = await RoomService.getRoomById(roomId);
+          if (!roomData) {
+            setError("Room not found");
+            return;
+          }
+
+          // Check if user has access to this room
+          const hasAccess = userSession.joinedRooms.some(
+            jr => jr.name === roomData.name
+          );
+
+          if (!hasAccess) {
+            // Add room to user session if not already there
+            const newJoinedRoom = {
+              name: roomData.name,
+              secretKey: roomData.secretKey,
+              joinedAt: new Date().toISOString(),
+              lastVisited: new Date().toISOString(),
+            };
+            
+            // This is a bit of a hack - we should ideally update through the parent
+            const currentSession = { ...userSession };
+            currentSession.joinedRooms.push(newJoinedRoom);
+            currentSession.currentRoomName = roomData.name;
+            
+            localStorage.setItem('userSession', JSON.stringify(currentSession));
+          }
+
+          setRoom(roomData);
+          return;
+        } catch (err) {
+          console.error("Error loading room by ID:", err);
+          setError("Error loading room data");
+          return;
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // Priority 2: Fallback to legacy currentRoomName logic
       if (!userSession.currentRoomName) {
         navigate("/");
         return;
@@ -54,6 +101,12 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
           return;
         }
 
+        // If we have room data with ID, redirect to new URL format
+        if (roomData.id) {
+          navigate(`/room/${roomData.id}`, { replace: true });
+          return;
+        }
+
         setRoom(roomData);
       } catch (err) {
         console.error("Error loading room:", err);
@@ -64,7 +117,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     };
 
     loadRoomData();
-  }, [userSession.currentRoomName, userSession.joinedRooms, navigate]);
+  }, [roomId, userSession.currentRoomName, userSession.joinedRooms, userSession, navigate]);
 
   const handleSticksUpdate = async (
     playerId: string,
