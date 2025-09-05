@@ -172,6 +172,28 @@ export class RoomService {
     }
   }
 
+  static async updateRoomDetails(updatedRoom: Room): Promise<void> {
+    try {
+      if (!updatedRoom.id) {
+        throw new Error("Room ID is required for update");
+      }
+
+      const docRef = doc(db, ROOMS_COLLECTION, updatedRoom.id);
+      
+      // Prepare update data, excluding the id field
+      await updateDoc(docRef, {
+        name: updatedRoom.name,
+        secretKey: updatedRoom.secretKey,
+        description: updatedRoom.description,
+        players: updatedRoom.players,
+        createdAt: updatedRoom.createdAt,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      throw new Error(`Erreur lors de la mise à jour des détails de la room: ${error}`);
+    }
+  }
+
   static async deleteRoom(roomId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, ROOMS_COLLECTION, roomId));
