@@ -7,6 +7,7 @@ import DualStickCounter from "./components/DualStickCounter";
 import type { UserSession } from "./types/session.types";
 import { RoomService } from "./services/room.service";
 import { extractRoomIdFromUrl, clearRoomIdFromUrl } from "./utils/invitation";
+import { sessionManager } from "./services/session.service";
 
 function App() {
   const [userSession, setUserSession] = useState<UserSession>({
@@ -18,11 +19,8 @@ function App() {
   useEffect(() => {
     const loadUserSession = () => {
       try {
-        const savedSession = localStorage.getItem('userSession');
-        if (savedSession) {
-          const parsedSession = JSON.parse(savedSession) as UserSession;
-          setUserSession(parsedSession);
-        }
+        const loadedSession = sessionManager.loadSession();
+        setUserSession(loadedSession);
       } catch (error) {
         console.error('Error loading user session:', error);
       }
@@ -36,39 +34,23 @@ function App() {
           // Get room data from Firebase using roomId
           const room = await RoomService.getRoomById(roomId);
           if (room) {
-            // Check if user already has this room
-            const savedSession = localStorage.getItem('userSession');
-            let currentSession: UserSession = {
-              joinedRooms: [],
-              currentRoomName: undefined,
+            // Add room to session using SessionManager
+            const newJoinedRoom = {
+              name: room.name,
+              secretKey: room.secretKey,
+              joinedAt: new Date().toISOString(),
+              lastVisited: new Date().toISOString(),
             };
             
-            if (savedSession) {
-              currentSession = JSON.parse(savedSession);
-            }
+            // Add room (will handle duplicates automatically)
+            sessionManager.addRoom(newJoinedRoom);
             
-            const existingRoom = currentSession.joinedRooms.find(
-              jr => jr.name === room.name
-            );
+            // Set as current room
+            sessionManager.setCurrentRoom(room.name);
             
-            if (!existingRoom) {
-              // Add room to user session
-              const newJoinedRoom = {
-                name: room.name,
-                secretKey: room.secretKey,
-                joinedAt: new Date().toISOString(),
-                lastVisited: new Date().toISOString(),
-              };
-              
-              currentSession.joinedRooms.push(newJoinedRoom);
-            }
-            
-            // Set as current room and navigate
-            currentSession.currentRoomName = room.name;
-            
-            // Save session and navigate
-            localStorage.setItem('userSession', JSON.stringify(currentSession));
-            setUserSession(currentSession);
+            // Update local state
+            const updatedSession = sessionManager.getCurrentSession();
+            setUserSession(updatedSession);
             
             // Clear the roomId from URL
             clearRoomIdFromUrl();
@@ -95,17 +77,18 @@ function App() {
 
   const saveUserSession = (session: UserSession) => {
     try {
-      localStorage.setItem('userSession', JSON.stringify(session));
-      setUserSession(session);
+      const success = sessionManager.saveSession(session);
+      if (success) {
+        setUserSession(session);
+      } else {
+        console.error('Failed to save user session');
+      }
     } catch (error) {
       console.error('Error saving user session:', error);
     }
   };
 
-  const getCurrentRoom = () =>
-    userSession.joinedRooms.find(
-      (room) => room.name === userSession.currentRoomName,
-    );
+  const getCurrentRoom = () => sessionManager.getCurrentRoom();
 
   // Show loading screen while processing invitation
   if (isProcessingInvitation) {

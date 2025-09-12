@@ -4,6 +4,7 @@ import { ArrowLeft, FileText, Key, Plus, Users, X } from "lucide-react";
 import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types";
 import type { UserSession } from "../types/session.types";
 import { RoomService } from "../services/room.service.ts";
+import { sessionManager } from "../services/session.service.ts";
 
 interface Props {
   setUserSession: (session: UserSession) => void;
@@ -141,26 +142,20 @@ export default function CreateRoomForm({ setUserSession }: Props) {
         setIsSubmitting(true);
         const roomId = await RoomService.createRoom(formData);
 
-        const updateSession = (prev: UserSession) => ({
-          ...prev,
-          currentRoomName: formData.name,
-          joinedRooms: [
-            ...prev.joinedRooms,
-            {
-              name: formData.name,
-              secretKey: formData.secretKey,
-              lastVisited: new Date().toISOString(),
-              joinedAt: new Date().toISOString(),
-            },
-          ],
-        });
 
-        // Get current session from localStorage or default
-        const currentSession = JSON.parse(
-          localStorage.getItem("userSession") ||
-            '{"joinedRooms":[],"currentRoomName":null}',
-        ) as UserSession;
-        setUserSession(updateSession(currentSession));
+        // Add room to session using SessionManager
+        const newJoinedRoom = {
+          name: formData.name,
+          secretKey: formData.secretKey,
+          joinedAt: new Date().toISOString(),
+          lastVisited: new Date().toISOString(),
+        };
+
+        sessionManager.addRoom(newJoinedRoom);
+        sessionManager.setCurrentRoom(formData.name);
+        
+        const updatedSession = sessionManager.getCurrentSession();
+        setUserSession(updatedSession);
 
         // Navigate to the new room using its ID
         navigate(`/room/${roomId}`);

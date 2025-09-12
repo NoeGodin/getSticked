@@ -5,6 +5,7 @@ import type { JoinRoomForm as JoinRoomFormData } from "../types/room.types";
 import type { UserSession } from "../types/session.types";
 import { verifRoomId } from "../utils/form.ts";
 import { RoomService } from "../services/room.service.ts";
+import { sessionManager } from "../services/session.service.ts";
 
 interface JoinRoomFormProps {
   setUserSession: (session: UserSession) => void;
@@ -50,43 +51,26 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
           return;
         }
 
-        // USER SESSION MANAGEMENT
-        const currentSession = JSON.parse(
-          localStorage.getItem("userSession") ||
-            '{"joinedRooms":[],"currentRoomName":null}',
-        ) as UserSession;
-        const existingRoom = currentSession.joinedRooms.find(
-          (joinedRoom) => joinedRoom.name === formData.name,
-        );
+        // USER SESSION MANAGEMENT using SessionManager
+        const newJoinedRoom = {
+          name: formData.name,
+          secretKey: formData.secretKey,
+          joinedAt: new Date().toISOString(),
+          lastVisited: new Date().toISOString(),
+        };
 
-        let updatedSession: UserSession;
-        if (existingRoom) {
-          updatedSession = {
-            ...currentSession,
-            currentRoomName: formData.name,
-            joinedRooms: currentSession.joinedRooms.map((joinedRoom) =>
-              joinedRoom.name === formData.name
-                ? { ...joinedRoom, lastVisited: new Date().toISOString() }
-                : joinedRoom,
-            ),
-          };
+        // Add room (will handle duplicates automatically)
+        const roomAdded = sessionManager.addRoom(newJoinedRoom);
+        
+        // Set as current room
+        const currentRoomSet = sessionManager.setCurrentRoom(formData.name);
+        
+        if (roomAdded && currentRoomSet) {
+          const updatedSession = sessionManager.getCurrentSession();
+          setUserSession(updatedSession);
         } else {
-          updatedSession = {
-            ...currentSession,
-            currentRoomName: formData.name,
-            joinedRooms: [
-              ...currentSession.joinedRooms,
-              {
-                name: formData.name,
-                secretKey: formData.secretKey,
-                lastVisited: new Date().toISOString(),
-                joinedAt: new Date().toISOString(),
-              },
-            ],
-          };
+          console.error('Failed to update session after joining room');
         }
-
-        setUserSession(updatedSession);
 
         // Navigate to the room using its ID if available
         if (room.id) {

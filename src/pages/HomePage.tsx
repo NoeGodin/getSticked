@@ -5,7 +5,7 @@ import type { Room } from "../types/room.types";
 import type { HomePageProps } from "../types/ui.types.ts";
 import { RoomService } from "../services/room.service.ts";
 import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
-import type { UserSession } from "../types/session.types.ts";
+import { sessionManager } from "../services/session.service.ts";
 
 const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -42,8 +42,26 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
           (room): room is Room => room !== null,
         );
         setRooms(validRooms);
+        
+        // Clean up invalid rooms from session if any failed to load
+        const failedRoomNames = userSession.joinedRooms
+          .filter((_, index) => roomResults[index] === null)
+          .map(room => room.name);
+          
+        if (failedRoomNames.length > 0) {
+          console.warn(`Removing ${failedRoomNames.length} invalid rooms from session`);
+          failedRoomNames.forEach(roomName => {
+            sessionManager.removeRoom(roomName);
+          });
+          
+          // Update local session state
+          const updatedSession = sessionManager.getCurrentSession();
+          setUserSession(updatedSession);
+        }
       } catch (error) {
         console.error("Error loading rooms:", error);
+        // Even if there's an error, try to show cached room data if available
+        setRooms([]);
       } finally {
         setLoading(false);
       }
@@ -53,20 +71,21 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   }, [userSession.joinedRooms]);
 
   const handleRoomClick = (room: Room) => {
-    const currentSession = JSON.parse(
-      localStorage.getItem("userSession") ||
-        '{"joinedRooms":[],"currentRoomName":null}',
-    ) as UserSession;
-    setUserSession({
-      ...currentSession,
-      currentRoomName: room.name,
-    });
-
-    // Use room ID if available, fallback to legacy /game route
-    if (room.id) {
-      navigate(`/room/${room.id}`);
+    // Set current room using SessionManager
+    const success = sessionManager.setCurrentRoom(room.name);
+    
+    if (success) {
+      const updatedSession = sessionManager.getCurrentSession();
+      setUserSession(updatedSession);
+      
+      // Use room ID if available, fallback to legacy /game route
+      if (room.id) {
+        navigate(`/room/${room.id}`);
+      } else {
+        navigate("/game");
+      }
     } else {
-      navigate("/game");
+      console.error('Failed to set current room');
     }
   };
 
