@@ -13,7 +13,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db } from "../utils/firebase";
+import { db } from "../config/firebase";
 import type {
   CreateRoomForm,
   JoinRoomForm,
