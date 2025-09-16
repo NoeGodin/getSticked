@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import { ArrowLeft, Settings, User, Plus, X, Save, FileText } from "lucide-react";
+import { ArrowLeft, Settings, User, Plus, X, Save, FileText, LogOut } from "lucide-react";
 import type { Room, Player } from "../types/room.types";
 import type { Stick } from "../types/stick.types";
 import { RoomService } from "../services/room.service";
+import { sessionManager } from "../services/session.service";
 
 interface RoomSettingsProps {
   room: Room;
   onBack: () => void;
   onRoomUpdate: (updatedRoom: Room) => void;
+  onLeaveRoom?: () => void;
 }
 
 interface PlayerEdit extends Player {
@@ -18,6 +20,7 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
   room,
   onBack,
   onRoomUpdate,
+  onLeaveRoom,
 }) => {
   const [description, setDescription] = useState(room.description || "");
   const [players, setPlayers] = useState<PlayerEdit[]>(
@@ -25,6 +28,7 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -132,6 +136,20 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
     return playerSticks.reduce((total, stick) => {
       return stick.isRemoved ? total - stick.count : total + stick.count;
     }, 0);
+  };
+
+  const handleLeaveRoom = () => {
+    const success = sessionManager.removeRoom(room.name);
+    if (success) {
+      if (onLeaveRoom) {
+        onLeaveRoom();
+      } else {
+        onBack();
+      }
+    } else {
+      setErrors({ general: "Erreur lors de la suppression du salon" });
+    }
+    setShowLeaveConfirmation(false);
   };
 
   return (
@@ -249,6 +267,31 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
               </div>
             </div>
 
+            {/* Leave Room Section */}
+            <div className="pt-6 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Zone de danger</h3>
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="flex items-start space-x-3">
+                  <LogOut size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-red-800 mb-1">
+                      Quitter ce salon
+                    </h4>
+                    <p className="text-sm text-red-600 mb-3">
+                      Vous ne recevrez plus de notifications et devrez rejoindre à nouveau avec le nom et la clé secrète.
+                    </p>
+                    <button
+                      onClick={() => setShowLeaveConfirmation(true)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center space-x-2"
+                    >
+                      <LogOut size={14} />
+                      <span>Quitter le salon</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Actions */}
             <div className="flex space-x-3 pt-4 border-t border-gray-200">
               <button
@@ -273,6 +316,42 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Leave Room Confirmation Modal */}
+      {showLeaveConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <LogOut size={24} className="text-red-500" />
+              <h3 className="text-lg font-semibold text-gray-800">
+                Quitter le salon
+              </h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir quitter le salon "<strong>{room.name}</strong>" ? 
+              Cette action supprimera le salon de votre liste et vous devrez le rejoindre 
+              à nouveau avec le nom et la clé secrète.
+            </p>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowLeaveConfirmation(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
+              >
+                <LogOut size={16} />
+                <span>Quitter</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

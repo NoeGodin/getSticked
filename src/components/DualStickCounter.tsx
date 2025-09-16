@@ -1,7 +1,7 @@
 // noinspection JSIgnoredPromiseFromCall
 
 import React, { useEffect, useState } from "react";
-import { Share2, Check, Settings } from "lucide-react";
+import { Check, Settings, Share2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import StickCounter from "./StickCounter.tsx";
 import SinglePlayerView from "./SinglePlayerView.tsx";
@@ -10,7 +10,7 @@ import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { UserSession } from "../types/session.types";
-import type { Room, Player } from "../types/room.types";
+import type { Player, Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { copyInvitationLink } from "../utils/invitation.ts";
 
@@ -28,7 +28,9 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [viewMode, setViewMode] = useState<'multi' | 'single' | 'list' | 'settings'>('multi');
+  const [viewMode, setViewMode] = useState<
+    "multi" | "single" | "list" | "settings"
+  >("multi");
 
   // Load room data on component mount
   useEffect(() => {
@@ -47,7 +49,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
 
           // Check if user has access to this room
           const hasAccess = userSession.joinedRooms.some(
-            jr => jr.name === roomData.name
+            (jr) => jr.name === roomData.name,
           );
 
           if (!hasAccess) {
@@ -58,13 +60,13 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
               joinedAt: new Date().toISOString(),
               lastVisited: new Date().toISOString(),
             };
-            
+
             // This is a bit of a hack - we should ideally update through the parent
             const currentSession = { ...userSession };
             currentSession.joinedRooms.push(newJoinedRoom);
             currentSession.currentRoomName = roomData.name;
-            
-            localStorage.setItem('userSession', JSON.stringify(currentSession));
+
+            localStorage.setItem("userSession", JSON.stringify(currentSession));
           }
 
           setRoom(roomData);
@@ -123,23 +125,26 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     };
 
     loadRoomData();
-  }, [roomId, userSession.currentRoomName, userSession.joinedRooms, userSession, navigate]);
+  }, [
+    roomId,
+    userSession.currentRoomName,
+    userSession.joinedRooms,
+    userSession,
+    navigate,
+  ]);
 
   // Determine view mode based on number of players
   useEffect(() => {
     if (room) {
       if (room.players.length > 4) {
-        setViewMode('list');
+        setViewMode("list");
       } else {
-        setViewMode('multi');
+        setViewMode("multi");
       }
     }
   }, [room]);
 
-  const handleSticksUpdate = async (
-    playerId: string,
-    newSticks: Stick[],
-  ) => {
+  const handleSticksUpdate = async (playerId: string, newSticks: Stick[]) => {
     if (!room?.id) return;
 
     try {
@@ -148,10 +153,8 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         if (!prevRoom) return prevRoom;
         return {
           ...prevRoom,
-          players: prevRoom.players.map(player =>
-            player.id === playerId
-              ? { ...player, sticks: newSticks }
-              : player
+          players: prevRoom.players.map((player) =>
+            player.id === playerId ? { ...player, sticks: newSticks } : player,
           ),
         };
       });
@@ -162,7 +165,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
 
   const handleShareInvitation = async () => {
     if (!room?.id) return;
-    
+
     const success = await copyInvitationLink(room.id);
     if (success) {
       setCopied(true);
@@ -172,28 +175,33 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
 
   const handlePlayerSelect = (player: Player) => {
     setSelectedPlayer(player);
-    setViewMode('single');
+    setViewMode("single");
   };
 
   const handleBackToList = () => {
     setSelectedPlayer(null);
-    setViewMode(room && room.players.length > 4 ? 'list' : 'multi');
+    setViewMode(room && room.players.length > 4 ? "list" : "multi");
   };
 
   const handleShowSettings = () => {
-    setViewMode('settings');
+    setViewMode("settings");
   };
 
   const handleBackFromSettings = () => {
-    setViewMode(room && room.players.length > 4 ? 'list' : 'multi');
+    setViewMode(room && room.players.length > 4 ? "list" : "multi");
   };
 
   const handleRoomUpdate = (updatedRoom: Room) => {
     setRoom(updatedRoom);
   };
 
+  const handleLeaveRoom = () => {
+    navigate("/");
+    location.reload();
+  };
+
   // Single player view when selected
-  if (viewMode === 'single' && selectedPlayer && room) {
+  if (viewMode === "single" && selectedPlayer && room) {
     return (
       <SinglePlayerView
         player={selectedPlayer}
@@ -206,12 +214,13 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   }
 
   // Settings view
-  if (viewMode === 'settings' && room) {
+  if (viewMode === "settings" && room) {
     return (
       <RoomSettings
         room={room}
         onBack={handleBackFromSettings}
         onRoomUpdate={handleRoomUpdate}
+        onLeaveRoom={handleLeaveRoom}
       />
     );
   }
@@ -249,7 +258,9 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
       <div className="bg-white shadow-sm border-b px-3 py-2">
         {/* Room name and description */}
         <div className="mb-2">
-          <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">{room.name}</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">
+            {room.name}
+          </h1>
           {room.description && (
             <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2 break-words">
               {room.description}
@@ -271,9 +282,9 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
             <button
               onClick={handleShareInvitation}
               className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm transition-colors ${
-                copied 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                copied
+                  ? "bg-green-500 text-white"
+                  : "bg-blue-500 hover:bg-blue-600 text-white"
               }`}
               title="Partager le lien d'invitation"
             >
@@ -301,7 +312,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
 
       {/* Game Area */}
       <div className="flex flex-col min-h-[calc(100vh-80px)]">
-        {viewMode === 'list' ? (
+        {viewMode === "list" ? (
           // Player list view for 4+ players
           <div className="flex-1 flex items-center justify-center p-4">
             <PlayerListView
@@ -312,12 +323,17 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         ) : (
           // Multi-counter view for 2-4 players
           <div className="flex-1 flex items-center justify-center">
-            <div className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
-              room.players.length === 1 ? 'grid-cols-1 max-w-md' :
-              room.players.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-              room.players.length === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-              'grid-cols-1 md:grid-cols-2'
-            }`}>
+            <div
+              className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
+                room.players.length === 1
+                  ? "grid-cols-1 max-w-md"
+                  : room.players.length === 2
+                    ? "grid-cols-1 md:grid-cols-2"
+                    : room.players.length === 3
+                      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                      : "grid-cols-1 md:grid-cols-2"
+              }`}
+            >
               {room.players.map((player) => (
                 <StickCounter
                   key={player.id}
@@ -333,7 +349,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
             </div>
           </div>
         )}
-        
+
         {/* History Widget */}
         <RoomHistoryWidget room={room} />
       </div>
