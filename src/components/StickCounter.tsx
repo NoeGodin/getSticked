@@ -69,7 +69,11 @@ const StickCounter: React.FC<StickCounterProps> = ({
       
       // Update Firebase
       if (roomId && user) {
-        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user);
+        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user, {
+          type: 'stick_added',
+          count: difference,
+          details: `Ajouté ${difference} bâton(s) pour ${playerName}${comment ? ` (${comment})` : ''}`
+        });
       }
       
       // Call parent update callback
@@ -101,7 +105,11 @@ const StickCounter: React.FC<StickCounterProps> = ({
       
       // Update Firebase
       if (roomId && user) {
-        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user);
+        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user, {
+          type: 'stick_removed',
+          count: difference,
+          details: `Retiré ${difference} bâton(s) pour ${playerName}${comment ? ` (${comment})` : ''}`
+        });
       }
       
       // Call parent update callback

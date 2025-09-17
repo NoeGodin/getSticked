@@ -26,7 +26,7 @@ import type { AuthUser } from "../types/auth.types";
 const ROOMS_COLLECTION = "rooms";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const convertFirestoreToRoom = (doc: any): Room => {
+const convertFirestoreToRoom = (doc: any, includeHistory: boolean = true): Room => {
   const data = doc.data();
   return {
     ...data,
@@ -39,11 +39,15 @@ const convertFirestoreToRoom = (doc: any): Room => {
       data.updatedAt instanceof Timestamp
         ? data.updatedAt.toDate().toISOString()
         : data.updatedAt,
+    history: includeHistory ? (Array.isArray(data.history) ? data.history : []) : [],
   } as Room;
 };
 
 export class RoomService {
-  static async createRoom(roomData: CreateRoomForm, owner: AuthUser): Promise<string> {
+  static async createRoom(
+    roomData: CreateRoomForm,
+    owner: AuthUser,
+  ): Promise<string> {
     try {
       const players: Player[] = roomData.playerNames.map((name, index) => ({
         id: `player${index + 1}`,
@@ -61,16 +65,18 @@ export class RoomService {
           displayName: owner.displayName,
         },
         createdAt: new Date().toISOString(),
-        history: [{
-          id: `action_${Date.now()}`,
-          type: 'room_updated',
-          performedBy: {
-            uid: owner.uid,
-            displayName: owner.displayName,
+        history: [
+          {
+            id: `action_${Date.now()}`,
+            type: "room_updated",
+            performedBy: {
+              uid: owner.uid,
+              displayName: owner.displayName,
+            },
+            timestamp: new Date().toISOString(),
+            details: "Room created",
           },
-          timestamp: new Date().toISOString(),
-          details: 'Room created'
-        }]
+        ],
       };
 
       const docRef = await addDoc(collection(db, ROOMS_COLLECTION), newRoom);
@@ -102,13 +108,13 @@ export class RoomService {
     }
   }
 
-  static async getRoomById(roomId: string): Promise<Room | null> {
+  static async getRoomById(roomId: string, includeHistory: boolean = true): Promise<Room | null> {
     try {
       const docRef = doc(db, ROOMS_COLLECTION, roomId);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return convertFirestoreToRoom(docSnap);
+        return convertFirestoreToRoom(docSnap, includeHistory);
       }
       return null;
     } catch (error) {
@@ -116,11 +122,21 @@ export class RoomService {
     }
   }
 
+  // Optimized method for listing rooms without history (for HomePage)
+  static async getRoomByIdLight(roomId: string): Promise<Room | null> {
+    return this.getRoomById(roomId, false);
+  }
+
   static async updatePlayerSticks(
     roomId: string,
     playerId: string,
     sticks: Stick[],
     performedBy: AuthUser,
+    actionHistory?: {
+      type: 'stick_added' | 'stick_removed';
+      count: number;
+      details: string;
+    },
   ): Promise<void> {
     try {
       // Get the current room
@@ -129,7 +145,7 @@ export class RoomService {
         throw new Error("Room not found");
       }
 
-      const player = room.players.find(p => p.id === playerId);
+      const player = room.players.find((p) => p.id === playerId);
       if (!player) {
         throw new Error("Player not found");
       }
@@ -139,21 +155,24 @@ export class RoomService {
         player.id === playerId ? { ...player, sticks } : player,
       );
 
-      // Create action history
-      const newAction: ActionHistory = {
-        id: `action_${Date.now()}`,
-        type: 'stick_added', // We'll determine this based on the difference
-        playerId,
-        playerName: player.name,
-        performedBy: {
-          uid: performedBy.uid,
-          displayName: performedBy.displayName,
-        },
-        timestamp: new Date().toISOString(),
-        details: `Updated sticks for ${player.name}`
-      };
+      // Add action to history if provided
+      let updatedHistory = room.history;
+      if (actionHistory) {
+        const newAction: ActionHistory = {
+          id: `action_${Date.now()}`,
+          type: actionHistory.type,
+          playerId,
+          playerName: player.name,
+          performedBy: {
+            uid: performedBy.uid,
+            displayName: performedBy.displayName,
+          },
+          timestamp: new Date().toISOString(),
+          details: actionHistory.details,
+        };
 
-      const updatedHistory = [...room.history, newAction];
+        updatedHistory = [...room.history, newAction];
+      }
 
       const docRef = doc(db, ROOMS_COLLECTION, roomId);
       await updateDoc(docRef, {
@@ -166,7 +185,6 @@ export class RoomService {
     }
   }
 
-
   static async updateRoomDetails(updatedRoom: Room): Promise<void> {
     try {
       if (!updatedRoom.id) {
@@ -174,7 +192,7 @@ export class RoomService {
       }
 
       const docRef = doc(db, ROOMS_COLLECTION, updatedRoom.id);
-      
+
       // Prepare update data, excluding the id field
       await updateDoc(docRef, {
         name: updatedRoom.name,
@@ -185,11 +203,16 @@ export class RoomService {
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
-      throw new Error(`Erreur lors de la mise à jour des détails de la room: ${error}`);
+      throw new Error(
+        `Erreur lors de la mise à jour des détails de la room: ${error}`,
+      );
     }
   }
 
-  static async deleteRoom(roomId: string, performedBy: AuthUser): Promise<void> {
+  static async deleteRoom(
+    roomId: string,
+    performedBy: AuthUser,
+  ): Promise<void> {
     try {
       // First verify the room exists and user is owner
       const room = await RoomService.getRoomById(roomId);
@@ -207,5 +230,4 @@ export class RoomService {
       throw new Error(`Erreur lors de la suppression de la room: ${error}`);
     }
   }
-
 }

@@ -39,8 +39,8 @@ const DualStickCounter = () => {
       try {
         setLoading(true);
         setError(null);
-        const roomData = await RoomService.getRoomById(roomId);
-        
+        const roomData = await RoomService.getRoomByIdLight(roomId);
+
         if (!roomData) {
           setError("Room not found");
           return;
@@ -51,7 +51,8 @@ const DualStickCounter = () => {
         // Check if user accessed via invitation link and auto-join if not already joined
         const userData = await UserService.getUserById(user.uid);
         const isOwner = roomData.owner.uid === user.uid;
-        const isAlreadyJoined = userData?.joinedRooms?.includes(roomId) || false;
+        const isAlreadyJoined =
+          userData?.joinedRooms?.includes(roomId) || false;
 
         if (!isOwner && !isAlreadyJoined) {
           try {
@@ -87,8 +88,13 @@ const DualStickCounter = () => {
     if (!room?.id || !user) return;
 
     try {
-      // Update Firebase
-      await RoomService.updatePlayerSticks(room.id, playerId, newSticks, user);
+      // Update Firebase (no history since StickCounter handles that)
+      await RoomService.updatePlayerSticks(
+        room.id,
+        playerId,
+        newSticks,
+        user,
+      );
 
       // Update local state
       setRoom((prevRoom) => {
@@ -206,7 +212,11 @@ const DualStickCounter = () => {
             <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">
               {room.name}
             </h1>
-            {isOwner && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Propriétaire</span>}
+            {isOwner && (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                Propriétaire
+              </span>
+            )}
           </div>
           {room.description && (
             <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2 break-words">
