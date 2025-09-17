@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import type { LoginForm, SignUpForm } from "../types/auth.types";
 
 const AuthPage = () => {
-  const { signIn, signUp, signInAnonymously } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,18 +54,6 @@ const AuthPage = () => {
     }
   };
 
-  const handleAnonymousLogin = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      await signInAnonymously();
-    } catch (error: any) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -217,24 +205,6 @@ const AuthPage = () => {
             </form>
           )}
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Ou</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleAnonymousLogin}
-              disabled={loading}
-              className="mt-3 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              Continuer en mode invité
-            </button>
-          </div>
         </div>
       </div>
     </div>

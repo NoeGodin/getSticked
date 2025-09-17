@@ -5,8 +5,7 @@ import {
   onAuthStateChanged,
   type User,
   updateProfile,
-  sendEmailVerification,
-  signInAnonymously
+  sendEmailVerification
 } from "firebase/auth";
 import { auth, db } from "../config/firebase";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
@@ -63,30 +62,6 @@ export class AuthService {
     }
   }
 
-  static async signInAnonymously(): Promise<AuthUser> {
-    try {
-      const userCredential = await signInAnonymously(auth);
-      const user = userCredential.user;
-
-      // Create anonymous user document
-      const userData: AuthUser = {
-        uid: user.uid,
-        email: null,
-        displayName: `Invité ${user.uid.slice(-6)}`,
-        emailVerified: false,
-        isAnonymous: true,
-        createdAt: new Date().toISOString(),
-        lastSignIn: new Date().toISOString(),
-        joinedRooms: []
-      };
-
-      await setDoc(doc(db, USERS_COLLECTION, user.uid), userData);
-
-      return userData;
-    } catch (error: any) {
-      throw new Error(`Erreur lors de la connexion anonyme: ${error.message}`);
-    }
-  }
 
   static async signOut(): Promise<void> {
     try {

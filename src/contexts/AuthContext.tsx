@@ -52,10 +52,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
   };
 
-  const signInAnonymously = async () => {
-    const userData = await AuthService.signInAnonymously();
-    setUser(userData);
-  };
 
   const signOut = async () => {
     await AuthService.signOut();
@@ -74,7 +70,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     signIn,
     signUp,
-    signInAnonymously,
     signOut,
     updateProfile,
   };
