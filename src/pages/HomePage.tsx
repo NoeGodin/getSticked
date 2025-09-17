@@ -7,6 +7,7 @@ import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
 import { getDocs, query, collection, where, orderBy, documentId } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { UserService } from "../services/user.service.ts";
+import { RoomService } from "../services/room.service.ts";
 
 const HomePage = () => {
   const { user, signOut } = useAuth();
@@ -29,10 +30,7 @@ const HomePage = () => {
         
         const ownedRoomsSnapshot = await getDocs(ownedRoomsQuery);
         const ownedRooms = ownedRoomsSnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }) as Room)
+          .map(doc => RoomService.convertDocToRoom(doc, false))
           .filter(room => room.owner?.uid); // Filter out invalid data
 
         // Get user data to fetch joined rooms
@@ -48,10 +46,7 @@ const HomePage = () => {
           
           const joinedRoomsSnapshot = await getDocs(joinedRoomsQuery);
           joinedRooms = joinedRoomsSnapshot.docs
-            .map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }) as Room)
+            .map(doc => RoomService.convertDocToRoom(doc, false))
             .filter(room => room.owner?.uid && room.owner.uid !== user.uid) // Exclude owned rooms and invalid data
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Sort manually
         }
@@ -265,7 +260,7 @@ const HomePage = () => {
                           Créé le {formatShortDate(room.createdAt)}
                         </span>
                       </div>
-                      {room.updatedAt && (
+                      {room.updatedAt && formatShortDate(room.updatedAt) !== "Date invalide" && (
                         <div className="flex items-center space-x-1">
                           <MessageSquare size={12} />
                           <span>MAJ {formatShortDate(room.updatedAt)}</span>

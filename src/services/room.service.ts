@@ -44,6 +44,11 @@ const convertFirestoreToRoom = (doc: any, includeHistory: boolean = true): Room 
 };
 
 export class RoomService {
+  // Public method to convert Firestore docs to Room objects
+  static convertDocToRoom(doc: any, includeHistory: boolean = false): Room {
+    return convertFirestoreToRoom(doc, includeHistory);
+  }
+
   static async createRoom(
     roomData: CreateRoomForm,
     owner: AuthUser,
