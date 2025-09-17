@@ -1,91 +1,86 @@
-import React, { useEffect, useState } from "react";
-import { Calendar, Crown, MessageSquare, Plus, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Calendar, Crown, LogOut, MessageSquare, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import type { Room } from "../types/room.types";
-import type { HomePageProps } from "../types/ui.types.ts";
-import { RoomService } from "../services/room.service.ts";
 import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
-import { sessionManager } from "../services/session.service.ts";
+import { getDocs, query, collection, where, orderBy, documentId } from "firebase/firestore";
+import { db } from "../config/firebase";
+import { UserService } from "../services/user.service.ts";
 
-const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
+const HomePage = () => {
+  const { user, signOut } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-
   const navigate = useNavigate();
+
   useEffect(() => {
-    const fetchRoomData = async (roomName: string): Promise<Room | null> => {
-      try {
-        const joinedRoom = userSession.joinedRooms.find(
-          (jr) => jr.name === roomName,
-        );
-        if (!joinedRoom) return null;
-
-        return await RoomService.joinRoom({
-          name: joinedRoom.name,
-          secretKey: joinedRoom.secretKey,
-        });
-      } catch (error) {
-        console.error(`Error fetching room ${roomName}:`, error);
-        return null;
-      }
-    };
-
-    const loadRooms = async () => {
+    const loadUserRooms = async () => {
+      if (!user) return;
+      
       setLoading(true);
-      const roomPromises = userSession.joinedRooms.map((joinedRoom) =>
-        fetchRoomData(joinedRoom.name),
-      );
-
       try {
-        const roomResults = await Promise.all(roomPromises);
-        const validRooms = roomResults.filter(
-          (room): room is Room => room !== null,
+        // Get all rooms where user is the owner
+        const ownedRoomsQuery = query(
+          collection(db, "rooms"),
+          where("owner.uid", "==", user.uid),
+          orderBy("createdAt", "desc")
         );
-        setRooms(validRooms);
         
-        // Clean up invalid rooms from session if any failed to load
-        const failedRoomNames = userSession.joinedRooms
-          .filter((_, index) => roomResults[index] === null)
-          .map(room => room.name);
+        const ownedRoomsSnapshot = await getDocs(ownedRoomsQuery);
+        const ownedRooms = ownedRoomsSnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }) as Room)
+          .filter(room => room.owner?.uid); // Filter out invalid data
+
+        // Get user data to fetch joined rooms
+        const userData = await UserService.getUserById(user.uid);
+        let joinedRooms: Room[] = [];
+
+        if (userData?.joinedRooms && userData.joinedRooms.length > 0) {
+          // Get rooms the user has joined (but doesn't own)
+          const joinedRoomsQuery = query(
+            collection(db, "rooms"),
+            where(documentId(), "in", userData.joinedRooms)
+          );
           
-        if (failedRoomNames.length > 0) {
-          console.warn(`Removing ${failedRoomNames.length} invalid rooms from session`);
-          failedRoomNames.forEach(roomName => {
-            sessionManager.removeRoom(roomName);
-          });
-          
-          // Update local session state
-          const updatedSession = sessionManager.getCurrentSession();
-          setUserSession(updatedSession);
+          const joinedRoomsSnapshot = await getDocs(joinedRoomsQuery);
+          joinedRooms = joinedRoomsSnapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }) as Room)
+            .filter(room => room.owner?.uid && room.owner.uid !== user.uid) // Exclude owned rooms and invalid data
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Sort manually
         }
+
+        // Combine owned and joined rooms
+        const allRooms = [...ownedRooms, ...joinedRooms];
+        setRooms(allRooms);
       } catch (error) {
         console.error("Error loading rooms:", error);
-        // Even if there's an error, try to show cached room data if available
         setRooms([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadRooms();
-  }, [userSession.joinedRooms]);
+    loadUserRooms();
+  }, [user]);
 
   const handleRoomClick = (room: Room) => {
-    // Set current room using SessionManager
-    const success = sessionManager.setCurrentRoom(room.name);
-    
-    if (success) {
-      const updatedSession = sessionManager.getCurrentSession();
-      setUserSession(updatedSession);
-      
-      // Use room ID if available, fallback to legacy /game route
-      if (room.id) {
-        navigate(`/room/${room.id}`);
-      } else {
-        navigate("/game");
-      }
-    } else {
-      console.error('Failed to set current room');
+    if (room.id) {
+      navigate(`/room/${room.id}`);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
   };
 
@@ -113,28 +108,50 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">GetSticked</h1>
-          <p className="text-gray-600">
-            Crée un salon pour n’importe quelle compétition entre 2 amis !
-          </p>
+        <div className="mb-8">
+          {/* Top row - User info and logout button */}
+          <div className="flex justify-end items-center mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm text-gray-600">Connecté en tant que</p>
+                <p className="font-medium text-gray-800">{user?.displayName}</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors duration-200"
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:inline">Déconnexion</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Main title - centered */}
+          <div className="text-center">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-800 mb-2">
+              GetSticked
+            </h1>
+            <p className="text-gray-600 text-sm sm:text-base px-4">
+              Crée un salon pour n'importe quelle compétition entre 2 amis !
+            </p>
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-center space-x-4 mb-8">
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8 px-4">
           <button
             onClick={() => navigate("/create")}
-            className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
+            className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200 w-full sm:w-auto"
           >
             <Plus size={20} />
             <span>Créer un salon</span>
           </button>
           <button
             onClick={() => navigate("/join")}
-            className="flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
+            className="flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200 w-full sm:w-auto"
           >
             <Users size={20} />
             <span>Rejoindre un salon</span>
@@ -142,74 +159,75 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
         </div>
 
         {/* Room Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-0">
           {loading ? (
-            Array.from({ length: 3 }).map((_, index) => (
+            Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
-                className="bg-white rounded-lg shadow-lg p-6 animate-pulse"
+                className="bg-white rounded-lg shadow-lg p-4 sm:p-6 animate-pulse"
               >
-                <div className="h-6 bg-gray-200 rounded mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                <div className="h-5 sm:h-6 bg-gray-200 rounded mb-3 sm:mb-4"></div>
+                <div className="h-3 sm:h-4 bg-gray-200 rounded mb-2 sm:mb-3"></div>
+                <div className="h-3 sm:h-4 bg-gray-200 rounded w-2/3 mb-3 sm:mb-4"></div>
                 <div className="flex justify-between items-center">
-                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/4"></div>
                 </div>
               </div>
             ))
           ) : rooms.length === 0 ? (
-            <div className="col-span-full text-center py-12">
+            <div className="col-span-full text-center py-12 px-4">
               <Users size={48} className="mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">
-                Aucun salon rejoint
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">
+                Aucun salon trouvé
               </h3>
-              <p className="text-gray-500 mb-6">
-                Créez votre premier salon ou rejoignez-en un existant
+              <p className="text-gray-500 mb-6 text-sm sm:text-base">
+                Créez ou rejoignez votre premier salon pour commencer à jouer
               </p>
-              <div className="flex justify-center space-x-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 max-w-xs sm:max-w-none mx-auto">
                 <button
                   onClick={() => navigate("/create")}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 w-full sm:w-auto"
                 >
                   Créer un salon
                 </button>
                 <button
                   onClick={() => navigate("/join")}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 w-full sm:w-auto"
                 >
                   Rejoindre un salon
                 </button>
               </div>
             </div>
           ) : (
-            rooms
-              .sort((a, b) => {
-                // Sort by modification date descending (most recent first)
-                const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt).getTime();
-                const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt).getTime();
-                return dateB - dateA;
-              })
-              .map((room) => {
+            rooms.map((room) => {
               const stickCounts = calculateTotalSticks(room);
-              const joinedRoom = userSession.joinedRooms.find(
-                (jr) => jr.name === room.name,
-              );
+              const isOwner = room.owner.uid === user?.uid;
 
               return (
                 <div
-                  key={room.name}
+                  key={room.id}
                   onClick={() => handleRoomClick(room)}
                   className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"
                 >
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-gray-800 line-clamp-1">
-                        {room.name}
-                      </h3>
-                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                        {stickCounts.total} bâtons
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 truncate">
+                          {room.name}
+                        </h3>
+                        {!isOwner && (
+                          <p className="text-sm text-green-600 font-medium">
+                            Salon rejoint
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 ml-2">
+                        <Crown size={16} className="text-yellow-500 flex-shrink-0" />
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                          {stickCounts.total} bâtons
+                        </span>
+                      </div>
                     </div>
 
                     {room.description && (
@@ -244,10 +262,7 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
                       <div className="flex items-center space-x-1">
                         <Calendar size={12} />
                         <span>
-                          Rejoint le{" "}
-                          {formatShortDate(
-                            joinedRoom?.joinedAt || room.createdAt,
-                          )}
+                          Créé le {formatShortDate(room.createdAt)}
                         </span>
                       </div>
                       {room.updatedAt && (
@@ -263,6 +278,7 @@ const HomePage: React.FC<HomePageProps> = ({ userSession, setUserSession }) => {
             })
           )}
         </div>
+
       </div>
     </div>
   );

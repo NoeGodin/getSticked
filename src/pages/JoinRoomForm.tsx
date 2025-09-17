@@ -1,17 +1,14 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Key, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import type { JoinRoomForm as JoinRoomFormData } from "../types/room.types";
-import type { UserSession } from "../types/session.types";
 import { verifRoomId } from "../utils/form.ts";
 import { RoomService } from "../services/room.service.ts";
-import { sessionManager } from "../services/session.service.ts";
+import { UserService } from "../services/user.service.ts";
 
-interface JoinRoomFormProps {
-  setUserSession: (session: UserSession) => void;
-}
-
-const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
+const JoinRoomForm = () => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<JoinRoomFormData>({
     name: "",
     secretKey: "",
@@ -39,6 +36,11 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!user) {
+      setErrors({ name: "Vous devez être connecté pour rejoindre un salon" });
+      return;
+    }
+
     if (validateForm()) {
       setIsLoading(true);
       try {
@@ -51,29 +53,9 @@ const JoinRoomForm: React.FC<JoinRoomFormProps> = ({ setUserSession }) => {
           return;
         }
 
-        // USER SESSION MANAGEMENT using SessionManager
-        const newJoinedRoom = {
-          name: formData.name,
-          secretKey: formData.secretKey,
-          joinedAt: new Date().toISOString(),
-          lastVisited: new Date().toISOString(),
-        };
-
-        // Add room (will handle duplicates automatically)
-        const roomAdded = sessionManager.addRoom(newJoinedRoom);
-        
-        // Set as current room
-        const currentRoomSet = sessionManager.setCurrentRoom(formData.name);
-        
-        if (roomAdded && currentRoomSet) {
-          const updatedSession = sessionManager.getCurrentSession();
-          setUserSession(updatedSession);
-        } else {
-          console.error('Failed to update session after joining room');
-        }
-
-        // Navigate to the room using its ID if available
+        // Add room to user's joined rooms
         if (room.id) {
+          await UserService.addRoomToUser(user.uid, room.id);
           navigate(`/room/${room.id}`);
         } else {
           navigate("/game");

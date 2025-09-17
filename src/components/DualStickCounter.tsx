@@ -1,26 +1,21 @@
 // noinspection JSIgnoredPromiseFromCall
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Settings, Share2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import StickCounter from "./StickCounter.tsx";
 import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
 import type { Stick } from "../types/stick.types.ts";
-import type { UserSession } from "../types/session.types";
 import type { Player, Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { copyInvitationLink } from "../utils/invitation.ts";
 
-interface DualStickCounterProps {
-  userSession: UserSession;
-  // eslint-disable-next-line
-  getCurrentRoom?: () => any; // Function to get current room data
-}
-
-const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
+const DualStickCounter = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
   const [room, setRoom] = useState<Room | null>(null);
@@ -35,53 +30,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   // Load room data on component mount
   useEffect(() => {
     const loadRoomData = async () => {
-      // Priority 1: Try to load from URL parameter (roomId)
-      if (roomId) {
-        try {
-          setLoading(true);
-          setError(null);
-
-          const roomData = await RoomService.getRoomById(roomId);
-          if (!roomData) {
-            setError("Room not found");
-            return;
-          }
-
-          // Check if user has access to this room
-          const hasAccess = userSession.joinedRooms.some(
-            (jr) => jr.name === roomData.name,
-          );
-
-          if (!hasAccess) {
-            // Add room to user session if not already there
-            const newJoinedRoom = {
-              name: roomData.name,
-              secretKey: roomData.secretKey,
-              joinedAt: new Date().toISOString(),
-              lastVisited: new Date().toISOString(),
-            };
-
-            // This is a bit of a hack - we should ideally update through the parent
-            const currentSession = { ...userSession };
-            currentSession.joinedRooms.push(newJoinedRoom);
-            currentSession.currentRoomName = roomData.name;
-
-            localStorage.setItem("userSession", JSON.stringify(currentSession));
-          }
-
-          setRoom(roomData);
-          return;
-        } catch (err) {
-          console.error("Error loading room by ID:", err);
-          setError("Error loading room data");
-          return;
-        } finally {
-          setLoading(false);
-        }
-      }
-
-      // Priority 2: Fallback to legacy currentRoomName logic
-      if (!userSession.currentRoomName) {
+      if (!roomId || !user) {
         navigate("/");
         return;
       }
@@ -89,29 +38,10 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
       try {
         setLoading(true);
         setError(null);
-
-        const joinedRoom = userSession.joinedRooms.find(
-          (jr) => jr.name === userSession.currentRoomName,
-        );
-
-        if (!joinedRoom) {
-          setError("Room not found in joined rooms");
-          return;
-        }
-
-        const roomData = await RoomService.joinRoom({
-          name: joinedRoom.name,
-          secretKey: joinedRoom.secretKey,
-        });
-
+        const roomData = await RoomService.getRoomById(roomId);
+        
         if (!roomData) {
-          setError("Failed to load room data");
-          return;
-        }
-
-        // If we have room data with ID, redirect to new URL format
-        if (roomData.id) {
-          navigate(`/room/${roomData.id}`, { replace: true });
+          setError("Room not found");
           return;
         }
 
@@ -125,13 +55,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     };
 
     loadRoomData();
-  }, [
-    roomId,
-    userSession.currentRoomName,
-    userSession.joinedRooms,
-    userSession,
-    navigate,
-  ]);
+  }, [roomId, user, navigate]);
 
   // Determine view mode based on number of players
   useEffect(() => {
@@ -145,10 +69,13 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
   }, [room]);
 
   const handleSticksUpdate = async (playerId: string, newSticks: Stick[]) => {
-    if (!room?.id) return;
+    if (!room?.id || !user) return;
 
     try {
-      // Update room data with new sticks
+      // Update Firebase
+      await RoomService.updatePlayerSticks(room.id, playerId, newSticks, user);
+
+      // Update local state
       setRoom((prevRoom) => {
         if (!prevRoom) return prevRoom;
         return {
@@ -169,7 +96,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     const success = await copyInvitationLink(room.id);
     if (success) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -197,7 +124,6 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
 
   const handleLeaveRoom = () => {
     navigate("/");
-    location.reload();
   };
 
   // Single player view when selected
@@ -221,6 +147,7 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         onBack={handleBackFromSettings}
         onRoomUpdate={handleRoomUpdate}
         onLeaveRoom={handleLeaveRoom}
+        onRoomDeleted={() => navigate("/")}
       />
     );
   }
@@ -252,15 +179,20 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
     );
   }
 
+  const isOwner = room?.owner?.uid === user?.uid;
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b px-3 py-2">
         {/* Room name and description */}
         <div className="mb-2">
-          <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">
-            {room.name}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">
+              {room.name}
+            </h1>
+            {isOwner && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Propriétaire</span>}
+          </div>
           {room.description && (
             <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2 break-words">
               {room.description}
@@ -271,14 +203,16 @@ const DualStickCounter: React.FC<DualStickCounterProps> = ({ userSession }) => {
         {/* Action buttons */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 sm:gap-2 flex-1">
-            <button
-              onClick={handleShowSettings}
-              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs sm:text-sm transition-colors"
-              title="Paramètres de la room"
-            >
-              <Settings size={14} className="sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Paramètres</span>
-            </button>
+            {isOwner && (
+              <button
+                onClick={handleShowSettings}
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs sm:text-sm transition-colors"
+                title="Paramètres de la room"
+              >
+                <Settings size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Paramètres</span>
+              </button>
+            )}
             <button
               onClick={handleShareInvitation}
               className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm transition-colors ${

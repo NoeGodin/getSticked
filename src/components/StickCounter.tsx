@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Check, History, Minus, Plus } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 import StickLog from "./StickLog";
 import ConfirmStickModal from "./ConfirmStickModal";
 import RemoveStickModal from "./RemoveStickModal";
@@ -15,6 +16,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
   player,
   onSticksUpdate
 }) => {
+  const { user } = useAuth();
   const totalSticks = getTotalSticks(sticks);
 
   const [currentSticks, setCurrentSticks] = useState<number>(totalSticks);
@@ -66,8 +68,8 @@ const StickCounter: React.FC<StickCounterProps> = ({
       const updatedSticks = [...sticks, newStick];
       
       // Update Firebase
-      if (roomId) {
-        await RoomService.updatePlayerSticks(roomId, player, updatedSticks);
+      if (roomId && user) {
+        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user);
       }
       
       // Call parent update callback
@@ -98,8 +100,8 @@ const StickCounter: React.FC<StickCounterProps> = ({
       const updatedSticks = [...sticks, removalStick];
       
       // Update Firebase
-      if (roomId) {
-        await RoomService.updatePlayerSticks(roomId, player, updatedSticks);
+      if (roomId && user) {
+        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user);
       }
       
       // Call parent update callback

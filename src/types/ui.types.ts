@@ -1,5 +1,4 @@
 import type { Stick } from "./stick.types";
-import type { UserSession } from "./session.types.ts";
 
 export interface StickCounterProps {
   playerName: string;
@@ -14,9 +13,4 @@ export interface StickLogProps {
   onClose: () => void;
   playerName: string;
   sticks: Stick[];
-}
-
-export interface HomePageProps {
-  userSession: UserSession;
-  setUserSession: (session: UserSession) => void;
 }

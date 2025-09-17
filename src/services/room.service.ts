@@ -15,12 +15,14 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import type {
+  ActionHistory,
   CreateRoomForm,
   JoinRoomForm,
   Player,
   Room,
 } from "../types/room.types";
 import type { Stick } from "../types/stick.types";
+import type { AuthUser } from "../types/auth.types";
 
 const ROOMS_COLLECTION = "rooms";
 
@@ -42,7 +44,7 @@ const convertFirestoreToRoom = (doc: any): Room => {
 };
 
 export class RoomService {
-  static async createRoom(roomData: CreateRoomForm): Promise<string> {
+  static async createRoom(roomData: CreateRoomForm, owner: AuthUser): Promise<string> {
     try {
       const players: Player[] = roomData.playerNames.map((name, index) => ({
         id: `player${index + 1}`,
@@ -55,7 +57,21 @@ export class RoomService {
         secretKey: roomData.secretKey,
         description: roomData.description,
         players,
+        owner: {
+          uid: owner.uid,
+          displayName: owner.displayName,
+        },
         createdAt: new Date().toISOString(),
+        history: [{
+          id: `action_${Date.now()}`,
+          type: 'room_updated',
+          performedBy: {
+            uid: owner.uid,
+            displayName: owner.displayName,
+          },
+          timestamp: new Date().toISOString(),
+          details: 'Room created'
+        }]
       };
 
       const docRef = await addDoc(collection(db, ROOMS_COLLECTION), newRoom);
@@ -105,6 +121,7 @@ export class RoomService {
     roomId: string,
     playerId: string,
     sticks: Stick[],
+    performedBy: AuthUser,
   ): Promise<void> {
     try {
       // Get the current room
@@ -113,14 +130,36 @@ export class RoomService {
         throw new Error("Room not found");
       }
 
+      const player = room.players.find(p => p.id === playerId);
+      if (!player) {
+        throw new Error("Player not found");
+      }
+
       // Update the specific player's sticks
       const updatedPlayers = room.players.map((player) =>
         player.id === playerId ? { ...player, sticks } : player,
       );
 
+      // Create action history
+      const newAction: ActionHistory = {
+        id: `action_${Date.now()}`,
+        type: 'stick_added', // We'll determine this based on the difference
+        playerId,
+        playerName: player.name,
+        performedBy: {
+          uid: performedBy.uid,
+          displayName: performedBy.displayName,
+        },
+        timestamp: new Date().toISOString(),
+        details: `Updated sticks for ${player.name}`
+      };
+
+      const updatedHistory = [...room.history, newAction];
+
       const docRef = doc(db, ROOMS_COLLECTION, roomId);
       await updateDoc(docRef, {
         players: updatedPlayers,
+        history: updatedHistory,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
@@ -128,49 +167,6 @@ export class RoomService {
     }
   }
 
-  static async addPlayerToRoom(
-    roomId: string,
-    playerName: string,
-  ): Promise<void> {
-    try {
-      const room = await RoomService.getRoomById(roomId);
-      if (!room) {
-        throw new Error("Room not found");
-      }
-
-      const newPlayer: Player = {
-        id: `player${room.players.length + 1}`,
-        name: playerName,
-        sticks: [],
-      };
-
-      const updatedPlayers = [...room.players, newPlayer];
-
-      const docRef = doc(db, ROOMS_COLLECTION, roomId);
-      await updateDoc(docRef, {
-        players: updatedPlayers,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      throw new Error(`Erreur lors de l'ajout du joueur: ${error}`);
-    }
-  }
-
-  static async updateRoom(
-    roomId: string,
-    updates: Partial<Room>,
-  ): Promise<void> {
-    try {
-      const docRef = doc(db, ROOMS_COLLECTION, roomId);
-
-      await updateDoc(docRef, {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      throw new Error(`Erreur lors de la mise à jour de la room: ${error}`);
-    }
-  }
 
   static async updateRoomDetails(updatedRoom: Room): Promise<void> {
     try {
@@ -194,102 +190,23 @@ export class RoomService {
     }
   }
 
-  static async deleteRoom(roomId: string): Promise<void> {
+  static async deleteRoom(roomId: string, performedBy: AuthUser): Promise<void> {
     try {
+      // First verify the room exists and user is owner
+      const room = await RoomService.getRoomById(roomId);
+      if (!room) {
+        throw new Error("Room not found");
+      }
+
+      // Check if user is the owner
+      if (room.owner.uid !== performedBy.uid) {
+        throw new Error("Only room owner can delete the room");
+      }
+
       await deleteDoc(doc(db, ROOMS_COLLECTION, roomId));
     } catch (error) {
       throw new Error(`Erreur lors de la suppression de la room: ${error}`);
     }
   }
 
-  static async getAllRooms(): Promise<Room[]> {
-    try {
-      const q = query(
-        collection(db, ROOMS_COLLECTION),
-        orderBy("createdAt", "desc"),
-      );
-
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => convertFirestoreToRoom(doc));
-    } catch (error) {
-      throw new Error(`Erreur lors de la récupération des rooms: ${error}`);
-    }
-  }
-
-  static async roomNameExists(name: string): Promise<boolean> {
-    try {
-      const q = query(
-        collection(db, ROOMS_COLLECTION),
-        where("name", "==", name),
-        limit(1),
-      );
-
-      const querySnapshot = await getDocs(q);
-      return !querySnapshot.empty;
-    } catch (error) {
-      throw new Error(`Erreur lors de la vérification du nom: ${error}`);
-    }
-  }
-
-  static async cleanOldRooms(daysOld: number = 7): Promise<number> {
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-      const q = query(
-        collection(db, ROOMS_COLLECTION),
-        where("createdAt", "<", Timestamp.fromDate(cutoffDate)),
-      );
-
-      const querySnapshot = await getDocs(q);
-      const deletePromises = querySnapshot.docs.map((doc) =>
-        deleteDoc(doc.ref),
-      );
-
-      await Promise.all(deletePromises);
-      return querySnapshot.size;
-    } catch (error) {
-      throw new Error(`Erreur lors du nettoyage: ${error}`);
-    }
-  }
-
-  static async getRoomStats(): Promise<{
-    totalRooms: number;
-    roomsToday: number;
-    roomsThisWeek: number;
-  }> {
-    try {
-      const now = new Date();
-      const todayStart = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-      );
-      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      const [totalQuery, todayQuery, weekQuery] = await Promise.all([
-        getDocs(collection(db, ROOMS_COLLECTION)),
-        getDocs(
-          query(
-            collection(db, ROOMS_COLLECTION),
-            where("createdAt", ">=", Timestamp.fromDate(todayStart)),
-          ),
-        ),
-        getDocs(
-          query(
-            collection(db, ROOMS_COLLECTION),
-            where("createdAt", ">=", Timestamp.fromDate(weekStart)),
-          ),
-        ),
-      ]);
-
-      return {
-        totalRooms: totalQuery.size,
-        roomsToday: todayQuery.size,
-        roomsThisWeek: weekQuery.size,
-      };
-    } catch (error) {
-      throw new Error(`Erreur lors du calcul des statistiques: ${error}`);
-    }
-  }
 }
