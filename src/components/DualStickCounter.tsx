@@ -13,6 +13,7 @@ import type { Stick } from "../types/stick.types.ts";
 import type { Player, Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { copyInvitationLink } from "../utils/invitation.ts";
+import { UserService } from "../services/user.service.ts";
 
 const DualStickCounter = () => {
   const { user } = useAuth();
@@ -46,6 +47,20 @@ const DualStickCounter = () => {
         }
 
         setRoom(roomData);
+
+        // Check if user accessed via invitation link and auto-join if not already joined
+        const userData = await UserService.getUserById(user.uid);
+        const isOwner = roomData.owner.uid === user.uid;
+        const isAlreadyJoined = userData?.joinedRooms?.includes(roomId) || false;
+
+        if (!isOwner && !isAlreadyJoined) {
+          try {
+            await UserService.addRoomToUser(user.uid, roomId);
+            console.log("User automatically joined room via invitation link");
+          } catch (error) {
+            console.error("Error auto-joining room:", error);
+          }
+        }
       } catch (err) {
         console.error("Error loading room:", err);
         setError("Error loading room data");
