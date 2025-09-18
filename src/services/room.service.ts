@@ -4,19 +4,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
-  limit,
-  query,
   serverTimestamp,
   Timestamp,
   updateDoc,
-  where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import type {
   ActionHistory,
   CreateRoomForm,
-  JoinRoomForm,
   Player,
   Room,
 } from "../types/room.types";
@@ -62,7 +57,6 @@ export class RoomService {
 
       const newRoom: Omit<Room, "updatedAt"> = {
         name: roomData.name,
-        secretKey: roomData.secretKey,
         description: roomData.description,
         players,
         owner: {
@@ -91,27 +85,6 @@ export class RoomService {
     }
   }
 
-  static async joinRoom(joinData: JoinRoomForm): Promise<Room | null> {
-    try {
-      const q = query(
-        collection(db, ROOMS_COLLECTION),
-        where("name", "==", joinData.name),
-        where("secretKey", "==", joinData.secretKey),
-        limit(1),
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        return null; // Room not found or invalid credentials
-      }
-
-      const doc = querySnapshot.docs[0];
-      return convertFirestoreToRoom(doc);
-    } catch (error) {
-      throw new Error(`Erreur lors de la connexion à la room: ${error}`);
-    }
-  }
 
   static async getRoomById(roomId: string, includeHistory: boolean = true): Promise<Room | null> {
     try {
@@ -201,7 +174,6 @@ export class RoomService {
       // Prepare update data, excluding the id field
       await updateDoc(docRef, {
         name: updatedRoom.name,
-        secretKey: updatedRoom.secretKey,
         description: updatedRoom.description,
         players: updatedRoom.players,
         createdAt: updatedRoom.createdAt,

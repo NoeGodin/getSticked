@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Key, Users } from "lucide-react";
+import { ArrowLeft, FileText, Users } from "lucide-react";
 import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { useAuth } from "../contexts/AuthContext";
@@ -10,7 +10,6 @@ export default function CreateRoomForm() {
   const { user } = useAuth();
   const [formData, setFormData] = useState<CreateRoomFormData>({
     name: "",
-    secretKey: "",
     description: "",
     playerNames: ["", ""], // Start with 2 players minimum
   });
@@ -55,12 +54,6 @@ export default function CreateRoomForm() {
       newErrors.name = "Le nom doit contenir au moins 3 caractères";
     }
 
-    // Validate secret key
-    if (!formData.secretKey.trim()) {
-      newErrors.secretKey = "La clé secrète est requise";
-    } else if (formData.secretKey.length < 4) {
-      newErrors.secretKey = "La clé doit contenir au moins 4 caractères";
-    }
 
     // Validate player names
     const playerNames = formData.playerNames.filter((name) => name.trim());
@@ -154,33 +147,6 @@ export default function CreateRoomForm() {
               )}
             </div>
 
-            {/* Secret Key */}
-            <div>
-              <label
-                htmlFor="secretKey"
-                className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2"
-              >
-                <Key size={16} />
-                <span>Clé secrète</span>
-              </label>
-              <input
-                type="text"
-                id="secretKey"
-                value={formData.secretKey}
-                onChange={(e) => handleInputChange("secretKey", e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                  errors.secretKey ? "border-red-300" : "border-gray-300"
-                }`}
-                placeholder="Ex: motdepasse123"
-                maxLength={20}
-              />
-              {errors.secretKey && (
-                <p className="mt-1 text-sm text-red-600">{errors.secretKey}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                Les autres joueurs utiliseront cette clé pour rejoindre le salon
-              </p>
-            </div>
 
             {/* Description */}
             <div>

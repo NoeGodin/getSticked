@@ -12,8 +12,8 @@ import RoomSettings from "./RoomSettings.tsx";
 import type { Stick } from "../types/stick.types.ts";
 import type { Player, Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
-import { copyInvitationLink } from "../utils/invitation.ts";
 import { UserService } from "../services/user.service.ts";
+import { InvitationService } from "../services/invitation.service.ts";
 
 const DualStickCounter = () => {
   const { user } = useAuth();
@@ -112,12 +112,30 @@ const DualStickCounter = () => {
   };
 
   const handleShareInvitation = async () => {
-    if (!room?.id) return;
+    if (!room?.id || !user) {
+      console.error("Missing room or user:", { roomId: room?.id, userId: user?.uid });
+      return;
+    }
 
-    const success = await copyInvitationLink(room.id);
-    if (success) {
+    console.log("Creating invitation for room:", room.id, "by user:", user.displayName);
+
+    try {
+      const invitationData = await InvitationService.createInvitation(
+        { roomId: room.id },
+        user
+      );
+      
+      console.log("Invitation created:", invitationData);
+      
+      // Copy URL to clipboard
+      await navigator.clipboard.writeText(invitationData.url);
+      console.log("URL copied to clipboard:", invitationData.url);
+      
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to create invitation:", error);
+      alert("Erreur lors de la création du lien d'invitation: " + error);
     }
   };
 

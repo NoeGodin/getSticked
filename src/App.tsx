@@ -3,20 +3,35 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import CreateRoomForm from "./pages/CreateRoomForm.tsx";
-import JoinRoomForm from "./pages/JoinRoomForm.tsx";
 import DualStickCounter from "./components/DualStickCounter";
 import { useEffect } from "react";
-import { extractRoomIdFromUrl, clearRoomIdFromUrl } from "./utils/invitation";
+import { InvitationService } from "./services/invitation.service";
 
 const AppContent = () => {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    const roomId = extractRoomIdFromUrl();
-    if (roomId && user) {
-      clearRoomIdFromUrl();
-      window.location.hash = `/room/${roomId}`;
-    }
+    const handleInvitation = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const inviteToken = urlParams.get("invite");
+      
+      if (inviteToken && user) {
+        try {
+          const result = await InvitationService.useInvitation(inviteToken, user);
+          // Clear the invite parameter from URL
+          urlParams.delete("invite");
+          const newUrl = `${window.location.origin}${window.location.pathname}${urlParams.toString() ? `?${urlParams}` : ''}`;
+          window.history.replaceState({}, document.title, newUrl);
+          // Redirect to room
+          window.location.hash = `/room/${result.roomId}`;
+        } catch (error) {
+          console.error("Failed to use invitation:", error);
+          // Could show a toast notification here
+        }
+      }
+    };
+
+    handleInvitation();
   }, [user]);
 
   if (loading) {
@@ -32,9 +47,11 @@ const AppContent = () => {
     );
   }
 
-  const roomId = extractRoomIdFromUrl();
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteToken = urlParams.get("invite");
+  
   if (!user) {
-    if (roomId) {
+    if (inviteToken) {
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center bg-white p-8 rounded-lg shadow-lg max-w-md mx-4">
@@ -60,9 +77,6 @@ const AppContent = () => {
 
         {/* Create Room */}
         <Route path="/create" element={<CreateRoomForm />} />
-
-        {/* Join Room */}
-        <Route path="/join" element={<JoinRoomForm />} />
 
         {/* Game - with room ID parameter */}
         <Route path="/room/:roomId" element={<DualStickCounter />} />

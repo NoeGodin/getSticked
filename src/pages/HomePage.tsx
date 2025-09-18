@@ -136,20 +136,13 @@ const HomePage = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8 px-4">
+        <div className="flex justify-center mb-8 px-4">
           <button
             onClick={() => navigate("/create")}
-            className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200 w-full sm:w-auto"
+            className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
           >
             <Plus size={20} />
             <span>Créer un salon</span>
-          </button>
-          <button
-            onClick={() => navigate("/join")}
-            className="flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200 w-full sm:w-auto"
-          >
-            <Users size={20} />
-            <span>Rejoindre un salon</span>
           </button>
         </div>
 
@@ -177,20 +170,14 @@ const HomePage = () => {
                 Aucun salon trouvé
               </h3>
               <p className="text-gray-500 mb-6 text-sm sm:text-base">
-                Créez ou rejoignez votre premier salon pour commencer à jouer
+                Créez votre premier salon pour commencer à jouer
               </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 max-w-xs sm:max-w-none mx-auto">
+              <div className="flex justify-center">
                 <button
                   onClick={() => navigate("/create")}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 w-full sm:w-auto"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors duration-200"
                 >
                   Créer un salon
-                </button>
-                <button
-                  onClick={() => navigate("/join")}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 w-full sm:w-auto"
-                >
-                  Rejoindre un salon
                 </button>
               </div>
             </div>
@@ -217,8 +204,7 @@ const HomePage = () => {
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2 ml-2">
-                        <Crown size={16} className="text-yellow-500 flex-shrink-0" />
+                      <div className="flex items-center ml-2">
                         <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full whitespace-nowrap">
                           {stickCounts.total} bâtons
                         </span>

@@ -23,7 +23,6 @@ export interface ActionHistory {
 export interface Room {
   id?: string; // Firebase document ID
   name: string;
-  secretKey: string;
   description?: string;
   players: Player[];
   owner: {
@@ -37,12 +36,6 @@ export interface Room {
 
 export interface CreateRoomForm {
   name: string;
-  secretKey: string;
   description: string;
   playerNames: string[];
-}
-
-export interface JoinRoomForm {
-  name: string;
-  secretKey: string;
 }
