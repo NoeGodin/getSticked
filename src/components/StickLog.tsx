@@ -22,6 +22,7 @@ const StickLog: React.FC<StickLogProps> = ({
   if (!isOpen) return null;
 
   const totalSticks = getTotalSticks(sticks);
+  const hasRemovedSticks = sticks.some((stick) => stick.isRemoved);
 
   const filteredSticks = showRemovedSticks
     ? sticks
@@ -49,41 +50,45 @@ const StickLog: React.FC<StickLogProps> = ({
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Toggle for showing removed sticks */}
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showRemovedSticks}
-                    onChange={(e) => setShowRemovedSticks(e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      showRemovedSticks ? "bg-red-500" : "bg-gray-300"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        showRemovedSticks ? "translate-x-6" : "translate-x-1"
-                      }`}
+              {/* Toggle for showing removed sticks - only if there are removed sticks */}
+              {hasRemovedSticks && (
+                <div className="flex items-center space-x-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showRemovedSticks}
+                      onChange={(e) => setShowRemovedSticks(e.target.checked)}
+                      className="sr-only"
                     />
-                  </div>
-                  <span className="ml-2 text-sm text-gray-600 flex items-center">
-                    {showRemovedSticks ? (
-                      <>
-                        <EyeOff size={16} className="mr-1" />
-                        Masquer suppressions
-                      </>
-                    ) : (
-                      <>
-                        <Eye size={16} className="mr-1" />
-                        Voir suppressions
-                      </>
-                    )}
-                  </span>
-                </label>
-              </div>
+                    <div
+                      className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${
+                        showRemovedSticks ? "bg-red-500" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                          showRemovedSticks ? "translate-x-5 sm:translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                    <span className="ml-2 text-xs sm:text-sm text-gray-600 flex items-center">
+                      {showRemovedSticks ? (
+                        <>
+                          <EyeOff size={14} className="mr-1 hidden sm:block" />
+                          <span className="hidden sm:inline">Masquer suppressions</span>
+                          <span className="sm:hidden">Masquer</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye size={14} className="mr-1 hidden sm:block" />
+                          <span className="hidden sm:inline">Voir suppressions</span>
+                          <span className="sm:hidden">Suppressions</span>
+                        </>
+                      )}
+                    </span>
+                  </label>
+                </div>
+              )}
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
