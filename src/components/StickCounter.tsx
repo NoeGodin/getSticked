@@ -5,7 +5,6 @@ import StickLog from "./StickLog";
 import ConfirmStickModal from "./ConfirmStickModal";
 import RemoveStickModal from "./RemoveStickModal";
 import type { StickCounterProps } from "../types/ui.types";
-import type { Room } from "../types/room.types";
 import type { Stick } from "../types/stick.types";
 import { getTotalSticks } from "../utils/helpers.ts";
 import { RoomService } from "../services/room.service.ts";
