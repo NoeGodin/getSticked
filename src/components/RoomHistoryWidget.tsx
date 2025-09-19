@@ -5,6 +5,7 @@ import type { Stick } from "../types/stick.types";
 
 interface RoomHistoryWidgetProps {
   room: Room;
+  currentPlayerId?: string; // When specified, only show history for this player
 }
 
 interface HistoryEntry extends Stick {
@@ -12,14 +13,19 @@ interface HistoryEntry extends Stick {
   playerId: string;
 }
 
-const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room }) => {
+const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlayerId }) => {
   const [visibleCount, setVisibleCount] = useState(5);
 
   // Combine all sticks from all players with player information
   const allHistoryEntries = useMemo((): HistoryEntry[] => {
     const allEntries: HistoryEntry[] = [];
     
-    room.players.forEach(player => {
+    // If currentPlayerId is specified, only show history for that player
+    const playersToInclude = currentPlayerId 
+      ? room.players.filter(player => player.id === currentPlayerId)
+      : room.players;
+    
+    playersToInclude.forEach(player => {
       player.sticks.forEach(stick => {
         allEntries.push({
           ...stick,
@@ -33,7 +39,7 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room }) => {
     return allEntries.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [room.players]);
+  }, [room.players, currentPlayerId]);
 
   const visibleEntries = allHistoryEntries.slice(0, visibleCount);
   const hasMoreEntries = allHistoryEntries.length > visibleCount;

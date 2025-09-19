@@ -5,6 +5,7 @@ import StickLog from "./StickLog";
 import ConfirmStickModal from "./ConfirmStickModal";
 import RemoveStickModal from "./RemoveStickModal";
 import type { StickCounterProps } from "../types/ui.types";
+import type { Room } from "../types/room.types";
 import type { Stick } from "../types/stick.types";
 import { getTotalSticks } from "../utils/helpers.ts";
 import { RoomService } from "../services/room.service.ts";
@@ -14,7 +15,8 @@ const StickCounter: React.FC<StickCounterProps> = ({
   sticks, 
   roomId,
   player,
-  onSticksUpdate
+  onSticksUpdate,
+  hideHistoryIcon = false
 }) => {
   const { user } = useAuth();
   const totalSticks = getTotalSticks(sticks);
@@ -189,13 +191,15 @@ const StickCounter: React.FC<StickCounterProps> = ({
             <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 truncate mr-2">
               {playerName}
             </h2>
-            <button
-              onClick={handleOpenLog}
-              className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-gray-500 hover:bg-gray-600 text-white rounded-full transition-colors duration-200 shadow-lg"
-              title="Voir l'historique"
-            >
-              <History size={16} className="sm:w-[18px] sm:h-[18px]" />
-            </button>
+            {!hideHistoryIcon && (
+              <button
+                onClick={handleOpenLog}
+                className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-gray-500 hover:bg-gray-600 text-white rounded-full transition-colors duration-200 shadow-lg"
+                title="Voir l'historique"
+              >
+                <History size={16} className="sm:w-[18px] sm:h-[18px]" />
+              </button>
+            )}
           </div>
 
           {/* Displaying sticks */}

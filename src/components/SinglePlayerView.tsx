@@ -50,12 +50,16 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
               roomId={roomId}
               player={player.id}
               onSticksUpdate={(newSticks) => onSticksUpdate(player.id, newSticks)}
+              hideHistoryIcon={room.players.length > 4}
             />
           </div>
         </div>
 
-        {/* History Widget */}
-        <RoomHistoryWidget room={room} />
+        {/* History Widget - Show only current player's history when room has > 4 players */}
+        <RoomHistoryWidget 
+          room={room} 
+          currentPlayerId={room.players.length > 4 ? player.id : undefined} 
+        />
       </div>
     </div>
   );
