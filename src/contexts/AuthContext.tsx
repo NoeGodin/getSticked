@@ -23,10 +23,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
       setLoading(true);
-      
+
       if (firebaseUser) {
         try {
-          const userData = await AuthService.getUserData(firebaseUser.uid);
+          let userData;
+          try {
+            userData = await AuthService.getUserData(firebaseUser.uid);
+          } catch {
+            // If user doesn't exist in Firestore, create them
+            console.log(
+              "User not found in Firestore, creating new user document"
+            );
+            userData = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              displayName: firebaseUser.displayName || "Utilisateur",
+              emailVerified: firebaseUser.emailVerified,
+              createdAt: new Date().toISOString(),
+              lastSignIn: new Date().toISOString(),
+              joinedRooms: [],
+            };
+
+            // Create user document in Firestore
+            await AuthService.createUserDocument(userData);
+          }
           setUser(userData);
         } catch (error) {
           console.error("Error loading user data:", error);
@@ -35,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         setUser(null);
       }
-      
+
       setLoading(false);
     });
 
@@ -47,11 +67,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
   };
 
-  const signUp = async (email: string, password: string, displayName: string) => {
-    const userData = await AuthService.createAccount(email, password, displayName);
+  const signUp = async (
+    email: string,
+    password: string,
+    displayName: string
+  ) => {
+    const userData = await AuthService.createAccount(
+      email,
+      password,
+      displayName
+    );
     setUser(userData);
   };
-
 
   const signOut = async () => {
     await AuthService.signOut();

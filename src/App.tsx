@@ -3,9 +3,9 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import CreateRoomForm from "./pages/CreateRoomForm.tsx";
-import DualStickCounter from "./components/DualStickCounter";
 import { useEffect } from "react";
 import { InvitationService } from "./services/invitation.service";
+import StickRoom from "./components/StickRoom.tsx";
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -14,13 +14,16 @@ const AppContent = () => {
     const handleInvitation = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const inviteToken = urlParams.get("invite");
-      
+
       if (inviteToken && user) {
         try {
-          const result = await InvitationService.useInvitation(inviteToken, user);
+          const result = await InvitationService.useInvitation(
+            inviteToken,
+            user
+          );
           // Clear the invite parameter from URL
           urlParams.delete("invite");
-          const newUrl = `${window.location.origin}${window.location.pathname}${urlParams.toString() ? `?${urlParams}` : ''}`;
+          const newUrl = `${window.location.origin}${window.location.pathname}${urlParams.toString() ? `?${urlParams}` : ""}`;
           window.history.replaceState({}, document.title, newUrl);
           // Redirect to room
           window.location.hash = `/room/${result.roomId}`;
@@ -49,7 +52,7 @@ const AppContent = () => {
 
   const urlParams = new URLSearchParams(window.location.search);
   const inviteToken = urlParams.get("invite");
-  
+
   if (!user) {
     if (inviteToken) {
       return (
@@ -75,11 +78,11 @@ const AppContent = () => {
         {/* Home */}
         <Route path="/" element={<HomePage />} />
 
-        {/* Create Room */}
+        {/* Create StickRoom */}
         <Route path="/create" element={<CreateRoomForm />} />
 
         {/* Game - with room ID parameter */}
-        <Route path="/room/:roomId" element={<DualStickCounter />} />
+        <Route path="/room/:roomId" element={<StickRoom />} />
       </Routes>
     </HashRouter>
   );

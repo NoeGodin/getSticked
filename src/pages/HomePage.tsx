@@ -1,24 +1,158 @@
-import { useEffect, useState } from "react";
-import { Calendar, Crown, LogOut, MessageSquare, Plus, Users } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import {
+  Calendar,
+  Crown,
+  LogOut,
+  MessageSquare,
+  Plus,
+  Users,
+  User,
+  Home,
+  Save,
+  Camera,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import type { Room } from "../types/room.types";
-import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
-import { getDocs, query, collection, where, orderBy, documentId } from "firebase/firestore";
+import { formatShortDate } from "../utils/helpers.ts";
+import {
+  collection,
+  documentId,
+  getDocs,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "../config/firebase";
 import { UserService } from "../services/user.service.ts";
 import { RoomService } from "../services/room.service.ts";
+import { ImageUploadService } from "../services/image-upload.service";
+import Avatar from "../components/Avatar";
+import type { AuthUser } from "../types/auth.types";
 
 const HomePage = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateProfile } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomStats, setRoomStats] = useState<
+    Record<
+      string,
+      {
+        totalSticks: number;
+        players: {
+          id: string;
+          name: string;
+          sticksCount: number;
+          isLeader?: boolean;
+        }[];
+      }
+    >
+  >({});
   const [loading, setLoading] = useState<boolean>(true);
+  type TabType = "rooms" | "profile";
+  const [activeTab, setActiveTab] = useState<TabType>("rooms");
+  
+  // Profile states
+  const [formData, setFormData] = useState({
+    displayName: user?.displayName || "",
+    bio: user?.bio || "",
+    photoURL: user?.photoURL || "",
+  });
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(
+    user?.photoURL || null
+  );
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const navigate = useNavigate();
+
+  // Mettre à jour formData quand user change
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        displayName: user.displayName || "",
+        bio: user.bio || "",
+        photoURL: user.photoURL || "",
+      });
+      setPreviewImage(user.photoURL || null);
+    }
+  }, [user]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const previewUrl = await ImageUploadService.createPreviewURL(file);
+      setPreviewImage(previewUrl);
+      setSelectedFile(file);
+    } catch (error) {
+      console.error("Error creating preview:", error);
+      alert("Erreur lors de la prévisualisation de l'image.");
+    }
+  };
+
+  const handleProfileSave = async () => {
+    if (!user) return;
+
+    setIsLoadingProfile(true);
+    let newPhotoURL = formData.photoURL;
+
+    try {
+      if (selectedFile) {
+        setIsUploadingImage(true);
+        
+        try {
+          if (user.photoURL) {
+            await ImageUploadService.deleteProfileImage(user.photoURL);
+          }
+
+          newPhotoURL = await ImageUploadService.uploadProfileImage(selectedFile, user.uid);
+        } catch (uploadError) {
+          console.error("Error uploading image:", uploadError);
+          alert("Erreur lors de l'upload de l'image. Sauvegarde des autres informations...");
+          newPhotoURL = user.photoURL || "";
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+
+      const updates: Partial<AuthUser> = {
+        displayName: formData.displayName.trim(),
+        bio: formData.bio.trim(),
+        photoURL: newPhotoURL,
+      };
+
+      await UserService.updateUserProfile(user.uid, updates);
+      await updateProfile(updates);
+
+      setSelectedFile(null);
+      alert("Profil mis à jour avec succès !");
+      
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du profil:", error);
+      alert("Erreur lors de la sauvegarde du profil.");
+    } finally {
+      setIsLoadingProfile(false);
+      setIsUploadingImage(false);
+    }
+  };
 
   useEffect(() => {
     const loadUserRooms = async () => {
       if (!user) return;
-      
+
       setLoading(true);
       try {
         // Get all rooms where user is the owner
@@ -27,11 +161,11 @@ const HomePage = () => {
           where("owner.uid", "==", user.uid),
           orderBy("createdAt", "desc")
         );
-        
+
         const ownedRoomsSnapshot = await getDocs(ownedRoomsQuery);
         const ownedRooms = ownedRoomsSnapshot.docs
-          .map(doc => RoomService.convertDocToRoom(doc, false))
-          .filter(room => room.owner?.uid); // Filter out invalid data
+          .map((doc) => RoomService.convertDocToRoom(doc, false))
+          .filter((room) => room.owner?.uid); // Filter out invalid data
 
         // Get user data to fetch joined rooms
         const userData = await UserService.getUserById(user.uid);
@@ -43,17 +177,39 @@ const HomePage = () => {
             collection(db, "rooms"),
             where(documentId(), "in", userData.joinedRooms)
           );
-          
+
           const joinedRoomsSnapshot = await getDocs(joinedRoomsQuery);
           joinedRooms = joinedRoomsSnapshot.docs
-            .map(doc => RoomService.convertDocToRoom(doc, false))
-            .filter(room => room.owner?.uid && room.owner.uid !== user.uid) // Exclude owned rooms and invalid data
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Sort manually
+            .map((doc) => RoomService.convertDocToRoom(doc, false))
+            .filter((room) => room.owner?.uid && room.owner.uid !== user.uid) // Exclude owned rooms and invalid data
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+            ); // Sort manually
         }
 
         // Combine owned and joined rooms
         const allRooms = [...ownedRooms, ...joinedRooms];
         setRooms(allRooms);
+
+        // Load statistics for each room
+        const statsPromises = allRooms.map(async (room) => {
+          try {
+            const stats = await calculateTotalSticks(room);
+            return { [room.id!]: stats };
+          } catch (error) {
+            console.warn(`Error loading stats for room ${room.id}:`, error);
+            return { [room.id!]: { players: [], totalSticks: 0 } };
+          }
+        });
+
+        const statsResults = await Promise.all(statsPromises);
+        const allStats = statsResults.reduce(
+          (acc, curr) => ({ ...acc, ...curr }),
+          {}
+        );
+        setRoomStats(allStats);
       } catch (error) {
         console.error("Error loading rooms:", error);
         setRooms([]);
@@ -79,28 +235,70 @@ const HomePage = () => {
     }
   };
 
-  const calculateTotalSticks = (room: Room) => {
-    const playerTotals = room.players.map(player => ({
-      id: player.id,
-      name: player.name,
-      total: getTotalSticks(player.sticks)
-    }));
-    
-    // Sort by stick count descending
-    const sortedPlayers = playerTotals.sort((a, b) => b.total - a.total);
-    
-    // Mark player(s) with the most sticks
-    const maxSticks = sortedPlayers.length > 0 ? sortedPlayers[0].total : 0;
-    const playersWithLeaderInfo = sortedPlayers.map(player => ({
-      ...player,
-      isLeader: player.total === maxSticks && maxSticks > 0
-    }));
-    
-    return {
-      players: playersWithLeaderInfo,
-      total: playerTotals.reduce((sum, player) => sum + player.total, 0),
-    };
+  const calculateTotalSticks = async (room: Room) => {
+    // Pour le modèle individuel, nous devons obtenir les statistiques depuis UserRoomSticksService
+    try {
+      const { UserRoomSticksService } = await import(
+        "../services/userRoomSticks.service"
+      );
+      const stats = await UserRoomSticksService.getRoomStats(room.id!);
+
+      // Créer une liste de "joueurs" fictifs pour l'affichage basée sur les vrais membres
+      const memberPlayers = await Promise.all(
+        room.memberIds?.map(async (memberId) => {
+          try {
+            const { UserService } = await import("../services/user.service");
+            const memberData = await UserService.getUserById(memberId);
+            const memberSticks = await UserRoomSticksService.getUserRoomSticks(
+              memberId,
+              room.id!
+            );
+            const total = memberSticks
+              ? UserRoomSticksService.getTotalActiveSticks(memberSticks)
+              : 0;
+
+            return {
+              id: memberId,
+              name: memberData?.displayName || "Utilisateur inconnu",
+              sticksCount: total,
+            };
+          } catch (error) {
+            console.warn(`Error loading member ${memberId}:`, error);
+            return {
+              id: memberId,
+              name: "Utilisateur inconnu",
+              sticksCount: 0,
+            };
+          }
+        }) || []
+      );
+
+      // Sort by stick count descending
+      const sortedPlayers = memberPlayers.sort(
+        (a, b) => b.sticksCount - a.sticksCount
+      );
+
+      // Mark player(s) with the most sticks
+      const maxSticks =
+        sortedPlayers.length > 0 ? sortedPlayers[0].sticksCount : 0;
+      const playersWithLeaderInfo = sortedPlayers.map((player) => ({
+        ...player,
+        isLeader: player.sticksCount === maxSticks && maxSticks > 0,
+      }));
+
+      return {
+        players: playersWithLeaderInfo,
+        totalSticks: stats.totalSticks,
+      };
+    } catch (error) {
+      console.error("Error calculating stick totals:", error);
+      return {
+        players: [],
+        totalSticks: 0,
+      };
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -123,7 +321,7 @@ const HomePage = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Main title - centered */}
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-800 mb-2">
@@ -135,20 +333,52 @@ const HomePage = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-center mb-8 px-4">
-          <button
-            onClick={() => navigate("/create")}
-            className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
-          >
-            <Plus size={20} />
-            <span>Créer un salon</span>
-          </button>
+        {/* Navigation Tabs */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-1 flex">
+            <button
+              onClick={() => setActiveTab("rooms")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors duration-200 ${
+                activeTab === "rooms"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              <Home size={18} />
+              <span>Mes Salons</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors duration-200 ${
+                (activeTab as string) === "profile"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              <User size={18} />
+              <span>Mon Profil</span>
+            </button>
+          </div>
         </div>
 
-        {/* Room Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-0">
-          {loading ? (
+        {/* Action Buttons - Only show for rooms tab */}
+        {activeTab === "rooms" && (
+          <div className="flex justify-center mb-8 px-4">
+            <button
+              onClick={() => navigate("/create")}
+              className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
+            >
+              <Plus size={20} />
+              <span>Créer un salon</span>
+            </button>
+          </div>
+        )}
+
+        {/* Content based on active tab */}
+        {activeTab === "rooms" ? (
+          /* StickRoom Cards */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-0">
+            {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
@@ -183,7 +413,10 @@ const HomePage = () => {
             </div>
           ) : (
             rooms.map((room) => {
-              const stickCounts = calculateTotalSticks(room);
+              const stickCounts = roomStats[room.id!] || {
+                players: [],
+                total: 0,
+              };
               const isOwner = room.owner.uid === user?.uid;
 
               return (
@@ -206,7 +439,7 @@ const HomePage = () => {
                       </div>
                       <div className="flex items-center ml-2">
                         <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full whitespace-nowrap">
-                          {stickCounts.total} bâtons
+                          {stickCounts.totalSticks} bâtons
                         </span>
                       </div>
                     </div>
@@ -218,48 +451,190 @@ const HomePage = () => {
                     )}
 
                     <div className="space-y-2 mb-4">
-                      {stickCounts.players.map((player) => (
-                        <div key={player.id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center space-x-2">
-                            {player.isLeader && (
-                              <Crown size={14} className="text-yellow-500 flex-shrink-0" />
-                            )}
-                            <span className="text-gray-700 font-medium">
-                              {player.name}
+                      {stickCounts.players.map(
+                        (player: {
+                          id: string;
+                          name: string;
+                          sticksCount: number;
+                          isLeader?: boolean;
+                        }) => (
+                          <div
+                            key={player.id}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <div className="flex items-center space-x-2">
+                              {player.isLeader && (
+                                <Crown
+                                  size={14}
+                                  className="text-yellow-500 flex-shrink-0"
+                                />
+                              )}
+                              <span className="text-gray-700 font-medium">
+                                {player.name}
+                              </span>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${
+                                player.isLeader
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {player.sticksCount} bâtons
                             </span>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            player.isLeader 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {player.total} bâtons
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
                       <div className="flex items-center space-x-1">
                         <Calendar size={12} />
-                        <span>
-                          Créé le {formatShortDate(room.createdAt)}
-                        </span>
+                        <span>Créé le {formatShortDate(room.createdAt)}</span>
                       </div>
-                      {room.updatedAt && formatShortDate(room.updatedAt) !== "Date invalide" && (
-                        <div className="flex items-center space-x-1">
-                          <MessageSquare size={12} />
-                          <span>MAJ {formatShortDate(room.updatedAt)}</span>
-                        </div>
-                      )}
+                      {room.updatedAt &&
+                        formatShortDate(room.updatedAt) !== "Date invalide" && (
+                          <div className="flex items-center space-x-1">
+                            <MessageSquare size={12} />
+                            <span>MAJ {formatShortDate(room.updatedAt)}</span>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
               );
             })
           )}
-        </div>
+          </div>
+        ) : (
+          /* Profile Content */
+          <div className="flex justify-center">
+            <div className="w-full max-w-md bg-white rounded-lg shadow-sm p-6">
+              {/* Photo de profil */}
+              <div className="flex flex-col items-center mb-6">
+                <div
+                  onClick={() => !isUploadingImage && fileInputRef.current?.click()}
+                  className={`relative w-24 h-24 rounded-full overflow-hidden bg-gray-200 transition-opacity group ${
+                    isUploadingImage ? "cursor-not-allowed" : "cursor-pointer hover:opacity-75"
+                  }`}
+                >
+                  <Avatar 
+                    photoURL={previewImage}
+                    displayName={user?.displayName}
+                    size="xl"
+                    className="w-full h-full"
+                  />
+                  {isUploadingImage ? (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Camera size={24} className="text-white" />
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  {isUploadingImage ? "Upload en cours..." : "Cliquez pour changer la photo"}
+                </p>
+                {selectedFile && !isUploadingImage && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Nouvelle image sélectionnée: {selectedFile.name}
+                  </p>
+                )}
+              </div>
 
+              {/* Formulaire */}
+              <div className="space-y-4">
+                {/* Nom d'affichage */}
+                <div>
+                  <label
+                    htmlFor="displayName"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Nom d'affichage *
+                  </label>
+                  <input
+                    type="text"
+                    id="displayName"
+                    name="displayName"
+                    value={formData.displayName}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Votre nom d'affichage"
+                  />
+                </div>
+
+                {/* Bio */}
+                <div>
+                  <label
+                    htmlFor="bio"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Biographie
+                  </label>
+                  <textarea
+                    id="bio"
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleInputChange}
+                    rows={3}
+                    maxLength={200}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="Parlez-nous de vous... (optionnel)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.bio.length}/200 caractères
+                  </p>
+                </div>
+
+                {/* Bouton Sauvegarder */}
+                <button
+                  onClick={handleProfileSave}
+                  disabled={isLoadingProfile || isUploadingImage}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${
+                    isLoadingProfile || isUploadingImage
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 hover:bg-blue-600"
+                  } text-white`}
+                >
+                  {isLoadingProfile || isUploadingImage ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  {isUploadingImage ? "Upload en cours..." : isLoadingProfile ? "Sauvegarde..." : "Sauvegarder"}
+                </button>
+
+                {/* Informations du compte */}
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    Informations du compte
+                  </h3>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Email :</span> {user?.email}
+                    </div>
+                    <div>
+                      <span className="font-medium">Membre depuis :</span>{" "}
+                      {user?.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString("fr-FR")
+                        : "Non disponible"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

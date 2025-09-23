@@ -7,12 +7,12 @@ const AuthPage = () => {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [loginForm, setLoginForm] = useState<LoginForm>({
     email: "",
     password: "",
   });
-  
+
   const [signUpForm, setSignUpForm] = useState<SignUpForm>({
     email: "",
     password: "",
@@ -24,11 +24,11 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       await signIn(loginForm.email, loginForm.password);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -38,22 +38,25 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     if (signUpForm.password !== signUpForm.confirmPassword) {
       setError("Les mots de passe ne correspondent pas");
       setLoading(false);
       return;
     }
-    
+
     try {
-      await signUp(signUpForm.email, signUpForm.password, signUpForm.displayName);
-    } catch (error: any) {
-      setError(error.message);
+      await signUp(
+        signUpForm.email,
+        signUpForm.password,
+        signUpForm.displayName
+      );
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -63,10 +66,12 @@ const AuthPage = () => {
             GetSticked
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            {isLoginMode ? "Connectez-vous à votre compte" : "Créez un nouveau compte"}
+            {isLoginMode
+              ? "Connectez-vous à votre compte"
+              : "Créez un nouveau compte"}
           </p>
         </div>
-        
+
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
@@ -102,7 +107,10 @@ const AuthPage = () => {
           {isLoginMode ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Email
                 </label>
                 <input
@@ -110,13 +118,18 @@ const AuthPage = () => {
                   type="email"
                   required
                   value={loginForm.email}
-                  onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                  onChange={(e) =>
+                    setLoginForm({ ...loginForm, email: e.target.value })
+                  }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Mot de passe
                 </label>
                 <input
@@ -124,11 +137,13 @@ const AuthPage = () => {
                   type="password"
                   required
                   value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  onChange={(e) =>
+                    setLoginForm({ ...loginForm, password: e.target.value })
+                  }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
@@ -140,7 +155,10 @@ const AuthPage = () => {
           ) : (
             <form onSubmit={handleSignUp} className="space-y-4">
               <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="displayName"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Nom d'affichage
                 </label>
                 <input
@@ -148,13 +166,21 @@ const AuthPage = () => {
                   type="text"
                   required
                   value={signUpForm.displayName}
-                  onChange={(e) => setSignUpForm({ ...signUpForm, displayName: e.target.value })}
+                  onChange={(e) =>
+                    setSignUpForm({
+                      ...signUpForm,
+                      displayName: e.target.value,
+                    })
+                  }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="signup-email" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="signup-email"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Email
                 </label>
                 <input
@@ -162,13 +188,18 @@ const AuthPage = () => {
                   type="email"
                   required
                   value={signUpForm.email}
-                  onChange={(e) => setSignUpForm({ ...signUpForm, email: e.target.value })}
+                  onChange={(e) =>
+                    setSignUpForm({ ...signUpForm, email: e.target.value })
+                  }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="signup-password" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="signup-password"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Mot de passe
                 </label>
                 <input
@@ -176,13 +207,18 @@ const AuthPage = () => {
                   type="password"
                   required
                   value={signUpForm.password}
-                  onChange={(e) => setSignUpForm({ ...signUpForm, password: e.target.value })}
+                  onChange={(e) =>
+                    setSignUpForm({ ...signUpForm, password: e.target.value })
+                  }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Confirmer le mot de passe
                 </label>
                 <input
@@ -190,11 +226,16 @@ const AuthPage = () => {
                   type="password"
                   required
                   value={signUpForm.confirmPassword}
-                  onChange={(e) => setSignUpForm({ ...signUpForm, confirmPassword: e.target.value })}
+                  onChange={(e) =>
+                    setSignUpForm({
+                      ...signUpForm,
+                      confirmPassword: e.target.value,
+                    })
+                  }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
@@ -204,7 +245,6 @@ const AuthPage = () => {
               </button>
             </form>
           )}
-
         </div>
       </div>
     </div>

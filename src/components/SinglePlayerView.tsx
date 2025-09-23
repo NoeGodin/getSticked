@@ -9,6 +9,7 @@ interface SinglePlayerViewProps {
   player: Player;
   roomId?: string;
   room: Room;
+  virtualPlayers?: Player[]; // Joueurs virtuels pour le nouveau modèle
   onBack: () => void;
   onSticksUpdate: (playerId: string, newSticks: Stick[]) => void;
 }
@@ -17,6 +18,7 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
   player,
   roomId,
   room,
+  virtualPlayers,
   onBack,
   onSticksUpdate,
 }) => {
@@ -33,9 +35,7 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
             <span>Retour</span>
           </button>
         </div>
-        <h1 className="text-lg font-semibold text-gray-800">
-          {player.name}
-        </h1>
+        <h1 className="text-lg font-semibold text-gray-800">{player.name}</h1>
         <div /> {/* Spacer for centering */}
       </div>
 
@@ -49,16 +49,22 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
               sticks={player.sticks}
               roomId={roomId}
               player={player.id}
-              onSticksUpdate={(newSticks) => onSticksUpdate(player.id, newSticks)}
-              hideHistoryIcon={room.players.length > 4}
+              onSticksUpdate={(newSticks) =>
+                onSticksUpdate(player.id, newSticks)
+              }
+              hideHistoryIcon={(virtualPlayers || []).length > 4}
+              playerPhotoURL={player.photoURL}
             />
           </div>
         </div>
 
         {/* History Widget - Show only current player's history when room has > 4 players */}
-        <RoomHistoryWidget 
-          room={room} 
-          currentPlayerId={room.players.length > 4 ? player.id : undefined} 
+        <RoomHistoryWidget
+          room={room}
+          virtualPlayers={virtualPlayers}
+          currentPlayerId={
+            (virtualPlayers || []).length > 4 ? player.id : undefined
+          }
         />
       </div>
     </div>

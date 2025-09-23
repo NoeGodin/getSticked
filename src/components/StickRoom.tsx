@@ -9,17 +9,17 @@ import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
-import type { Stick } from "../types/stick.types.ts";
 import type { Player, Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { UserService } from "../services/user.service.ts";
 import { InvitationService } from "../services/invitation.service.ts";
 
-const DualStickCounter = () => {
+const StickRoom = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
   const [room, setRoom] = useState<Room | null>(null);
+  const [virtualPlayers, setVirtualPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
@@ -27,6 +27,53 @@ const DualStickCounter = () => {
   const [viewMode, setViewMode] = useState<
     "multi" | "single" | "list" | "settings"
   >("multi");
+
+  // Load virtual players based on room members
+  const loadVirtualPlayers = async (roomData: Room) => {
+    if (!roomData.memberIds || roomData.memberIds.length === 0) {
+      setVirtualPlayers([]);
+      return;
+    }
+
+    try {
+      const { UserRoomSticksService } = await import(
+        "../services/userRoomSticks.service"
+      );
+
+      const playersPromises = roomData.memberIds.map(async (memberId) => {
+        try {
+          const memberData = await UserService.getUserById(memberId);
+          const memberSticks = await UserRoomSticksService.getUserRoomSticks(
+            memberId,
+            roomData.id!
+          );
+
+          return {
+            id: memberId,
+            name: memberData?.displayName || "Utilisateur inconnu",
+            sticks: memberSticks?.sticks || [],
+            photoURL: memberData?.photoURL,
+            bio: memberData?.bio,
+          };
+        } catch (error) {
+          console.warn(`Error loading member ${memberId}:`, error);
+          return {
+            id: memberId,
+            name: "Utilisateur inconnu",
+            sticks: [],
+            photoURL: undefined,
+            bio: undefined,
+          };
+        }
+      });
+
+      const players = await Promise.all(playersPromises);
+      setVirtualPlayers(players);
+    } catch (error) {
+      console.error("Error loading virtual players:", error);
+      setVirtualPlayers([]);
+    }
+  };
 
   // Load room data on component mount
   useEffect(() => {
@@ -42,11 +89,14 @@ const DualStickCounter = () => {
         const roomData = await RoomService.getRoomByIdLight(roomId);
 
         if (!roomData) {
-          setError("Room not found");
+          setError("StickRoom not found");
           return;
         }
 
         setRoom(roomData);
+
+        // Charger les joueurs virtuels basés sur les membres
+        await loadVirtualPlayers(roomData);
 
         // Check if user accessed via invitation link and auto-join if not already joined
         const userData = await UserService.getUserById(user.uid);
@@ -73,39 +123,31 @@ const DualStickCounter = () => {
     loadRoomData();
   }, [roomId, user, navigate]);
 
-  // Determine view mode based on number of players
+  // Determine view mode based on number of members
   useEffect(() => {
-    if (room) {
-      if (room.players.length > 4) {
-        setViewMode("list");
-      } else {
-        setViewMode("multi");
-      }
+    if (virtualPlayers.length > 4) {
+      setViewMode("list");
+    } else {
+      setViewMode("multi");
     }
-  }, [room]);
+  }, [virtualPlayers]);
 
-  const handleSticksUpdate = async (playerId: string, newSticks: Stick[]) => {
+  const handleSticksUpdate = async (playerId: string) => {
     if (!room?.id || !user) return;
 
-    try {
-      // Update Firebase (no history since StickCounter handles that)
-      await RoomService.updatePlayerSticks(
-        room.id,
-        playerId,
-        newSticks,
-        user,
+    if (playerId !== user.uid) {
+      console.error(
+        "Tentative de modification des bâtons d'un autre utilisateur"
       );
+      return;
+    }
 
-      // Update local state
-      setRoom((prevRoom) => {
-        if (!prevRoom) return prevRoom;
-        return {
-          ...prevRoom,
-          players: prevRoom.players.map((player) =>
-            player.id === playerId ? { ...player, sticks: newSticks } : player,
-          ),
-        };
-      });
+    try {
+      const updatedRoom = await RoomService.getRoomByIdLight(room.id);
+      if (updatedRoom) {
+        setRoom(updatedRoom);
+        await loadVirtualPlayers(updatedRoom);
+      }
     } catch (error) {
       console.error("Error updating sticks:", error);
     }
@@ -113,24 +155,32 @@ const DualStickCounter = () => {
 
   const handleShareInvitation = async () => {
     if (!room?.id || !user) {
-      console.error("Missing room or user:", { roomId: room?.id, userId: user?.uid });
+      console.error("Missing room or user:", {
+        roomId: room?.id,
+        userId: user?.uid,
+      });
       return;
     }
 
-    console.log("Creating invitation for room:", room.id, "by user:", user.displayName);
+    console.log(
+      "Creating invitation for room:",
+      room.id,
+      "by user:",
+      user.displayName
+    );
 
     try {
       const invitationData = await InvitationService.createInvitation(
         { roomId: room.id },
         user
       );
-      
+
       console.log("Invitation created:", invitationData);
-      
+
       // Copy URL to clipboard
       await navigator.clipboard.writeText(invitationData.url);
       console.log("URL copied to clipboard:", invitationData.url);
-      
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -139,14 +189,38 @@ const DualStickCounter = () => {
     }
   };
 
-  const handlePlayerSelect = (player: Player) => {
-    setSelectedPlayer(player);
-    setViewMode("single");
+  const handlePlayerSelect = async (playerId: string) => {
+    if (!room) return;
+
+    try {
+      // Créer un "joueur" virtuel basé sur les données du membre
+      const { UserService } = await import("../services/user.service");
+      const { UserRoomSticksService } = await import(
+        "../services/userRoomSticks.service"
+      );
+
+      const memberData = await UserService.getUserById(playerId);
+      const memberSticks = await UserRoomSticksService.getUserRoomSticks(
+        playerId,
+        room.id!
+      );
+
+      const virtualPlayer: Player = {
+        id: playerId,
+        name: memberData?.displayName || "Utilisateur inconnu",
+        sticks: memberSticks?.sticks || [],
+      };
+
+      setSelectedPlayer(virtualPlayer);
+      setViewMode("single");
+    } catch (error) {
+      console.error("Error selecting player:", error);
+    }
   };
 
   const handleBackToList = () => {
     setSelectedPlayer(null);
-    setViewMode(room && room.players.length > 4 ? "list" : "multi");
+    setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
   };
 
   const handleShowSettings = () => {
@@ -154,7 +228,7 @@ const DualStickCounter = () => {
   };
 
   const handleBackFromSettings = () => {
-    setViewMode(room && room.players.length > 4 ? "list" : "multi");
+    setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
   };
 
   const handleRoomUpdate = (updatedRoom: Room) => {
@@ -172,6 +246,7 @@ const DualStickCounter = () => {
         player={selectedPlayer}
         roomId={room.id}
         room={room}
+        virtualPlayers={virtualPlayers}
         onBack={handleBackToList}
         onSticksUpdate={handleSticksUpdate}
       />
@@ -206,7 +281,7 @@ const DualStickCounter = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || "Room not found"}</p>
+          <p className="text-red-600 mb-4">{error || "StickRoom not found"}</p>
           <button
             onClick={() => navigate("/")}
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
@@ -224,7 +299,7 @@ const DualStickCounter = () => {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b px-3 py-2">
-        {/* Room name and description */}
+        {/* StickRoom name and description */}
         <div className="mb-2">
           <div className="flex items-center gap-2">
             <h1 className="text-base sm:text-lg font-semibold text-gray-800 truncate">
@@ -293,7 +368,7 @@ const DualStickCounter = () => {
           // Player list view for 4+ players
           <div className="flex-1 flex items-center justify-center p-4">
             <PlayerListView
-              players={room.players}
+              players={virtualPlayers}
               onPlayerClick={handlePlayerSelect}
             />
           </div>
@@ -302,25 +377,24 @@ const DualStickCounter = () => {
           <div className="flex-1 flex items-center justify-center">
             <div
               className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
-                room.players.length === 1
+                virtualPlayers.length === 1
                   ? "grid-cols-1 max-w-md"
-                  : room.players.length === 2
+                  : virtualPlayers.length === 2
                     ? "grid-cols-1 md:grid-cols-2"
-                    : room.players.length === 3
+                    : virtualPlayers.length === 3
                       ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
                       : "grid-cols-1 md:grid-cols-2"
               }`}
             >
-              {room.players.map((player) => (
+              {virtualPlayers.map((player) => (
                 <StickCounter
                   key={player.id}
                   playerName={player.name}
                   sticks={player.sticks}
                   roomId={room.id}
                   player={player.id}
-                  onSticksUpdate={(newSticks) =>
-                    handleSticksUpdate(player.id, newSticks)
-                  }
+                  onSticksUpdate={() => handleSticksUpdate(player.id)}
+                  playerPhotoURL={player.photoURL}
                 />
               ))}
             </div>
@@ -328,10 +402,10 @@ const DualStickCounter = () => {
         )}
 
         {/* History Widget */}
-        <RoomHistoryWidget room={room} />
+        <RoomHistoryWidget room={room} virtualPlayers={virtualPlayers} />
       </div>
     </div>
   );
 };
 
-export default DualStickCounter;
+export default StickRoom;

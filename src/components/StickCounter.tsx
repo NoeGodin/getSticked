@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Check, History, Minus, Plus } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import Avatar from "./Avatar";
 import StickLog from "./StickLog";
 import ConfirmStickModal from "./ConfirmStickModal";
 import RemoveStickModal from "./RemoveStickModal";
@@ -9,15 +10,19 @@ import type { Stick } from "../types/stick.types";
 import { getTotalSticks } from "../utils/helpers.ts";
 import { RoomService } from "../services/room.service.ts";
 
-const StickCounter: React.FC<StickCounterProps> = ({ 
-  playerName, 
-  sticks, 
+const StickCounter: React.FC<StickCounterProps> = ({
+  playerName,
+  sticks,
   roomId,
   player,
   onSticksUpdate,
-  hideHistoryIcon = false
+  hideHistoryIcon = false,
+  playerPhotoURL,
 }) => {
   const { user } = useAuth();
+
+  // Check if user can modify sticks
+  const canModifySticks = user?.uid === player;
   const totalSticks = getTotalSticks(sticks);
 
   const [currentSticks, setCurrentSticks] = useState<number>(totalSticks);
@@ -34,10 +39,20 @@ const StickCounter: React.FC<StickCounterProps> = ({
   }, [sticks]);
 
   const handleAdd = () => {
+    // Ceck permissions
+    if (!canModifySticks) {
+      console.warn("Tentative de modification non autorisée");
+      return;
+    }
     setTempCount((prev) => prev + 1);
   };
 
   const handleRemove = () => {
+    // Ceck permissions
+    if (!canModifySticks) {
+      console.warn("Tentative de modification non autorisée");
+      return;
+    }
     setTempCount((prev) => Math.max(0, prev - 1));
   };
 
@@ -55,7 +70,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
 
   const handleConfirmAddSticks = async (comment: string) => {
     const difference = tempCount - currentSticks;
-    if (difference <= 0 || !roomId) return;
+    if (difference <= 0 || !roomId || !canModifySticks) return;
 
     try {
       // Create new stick entry
@@ -65,22 +80,26 @@ const StickCounter: React.FC<StickCounterProps> = ({
         count: difference,
       };
 
-      // Update local state
-      const updatedSticks = [...sticks, newStick];
-      
-      // Update Firebase
+      const { UserRoomSticksService } = await import(
+        "../services/userRoomSticks.service"
+      );
+
       if (roomId && user) {
-        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user, {
-          type: 'stick_added',
-          count: difference,
-          details: `Ajouté ${difference} bâton(s) pour ${playerName}${comment ? ` (${comment})` : ''}`
+        await UserRoomSticksService.addStick(user.uid, roomId, newStick, user);
+
+        await RoomService.addActionToHistory(roomId, {
+          type: "stick_added",
+          userId: user.uid,
+          performedBy: user,
+          details: `Ajouté ${difference} bâton(s)${comment ? ` (${comment})` : ""}`,
         });
       }
-      
-      // Call parent update callback
-      onSticksUpdate?.(updatedSticks);
-      
+
+      // Update local state and trigger parent
       setCurrentSticks(tempCount);
+
+      // Trigger reload to update data
+      onSticksUpdate?.([]);
     } catch (error) {
       console.error("Error adding sticks:", error);
       // Reset temp count on error
@@ -90,7 +109,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
 
   const handleConfirmRemoveSticks = async (comment: string) => {
     const difference = currentSticks - tempCount;
-    if (difference <= 0 || !roomId) return;
+    if (difference <= 0 || !roomId || !canModifySticks) return;
 
     try {
       // Create removal entry
@@ -101,22 +120,31 @@ const StickCounter: React.FC<StickCounterProps> = ({
         isRemoved: true,
       };
 
-      // Add the removal entry to sticks (don't actually remove existing sticks)
-      const updatedSticks = [...sticks, removalStick];
-      
-      // Update Firebase
+      const { UserRoomSticksService } = await import(
+        "../services/userRoomSticks.service"
+      );
+
       if (roomId && user) {
-        await RoomService.updatePlayerSticks(roomId, player, updatedSticks, user, {
-          type: 'stick_removed',
-          count: difference,
-          details: `Retiré ${difference} bâton(s) pour ${playerName}${comment ? ` (${comment})` : ''}`
+        await UserRoomSticksService.addStick(
+          user.uid,
+          roomId,
+          removalStick,
+          user
+        );
+
+        await RoomService.addActionToHistory(roomId, {
+          type: "stick_removed",
+          userId: user.uid,
+          performedBy: user,
+          details: `Retiré ${difference} bâton(s)${comment ? ` (${comment})` : ""}`,
         });
       }
-      
-      // Call parent update callback
-      onSticksUpdate?.(updatedSticks);
-      
+
+      // Update local state et trigger parent
       setCurrentSticks(tempCount);
+
+      // Reload to force sync
+      onSticksUpdate?.([]);
     } catch (error) {
       console.error("Error removing sticks:", error);
       // Reset temp count on error
@@ -155,7 +183,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
             <div className="w-5 sm:w-8 h-0.5 bg-gray-800 rotate-45 transform origin-center" />
           </div>
-        </div>,
+        </div>
       );
     }
 
@@ -172,7 +200,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
               className="w-0.5 sm:w-1 h-6 sm:h-8 md:h-12 bg-gray-800 rounded-sm"
             />
           ))}
-        </div>,
+        </div>
       );
     }
 
@@ -183,13 +211,27 @@ const StickCounter: React.FC<StickCounterProps> = ({
 
   return (
     <>
-      <div className="flex flex-col items-center p-2 sm:p-4 lg:p-8 bg-gray-50">
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 lg:p-8 w-full max-w-sm sm:max-w-md">
+      <div className="flex flex-col items-center p-2 sm:p-4 lg:p-8">
+        <div className="bg-gray-50 rounded-lg shadow-lg p-4 sm:p-6 lg:p-8 w-full max-w-sm sm:max-w-md">
           {/* Header with player name and history button */}
           <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 truncate mr-2">
-              {playerName}
-            </h2>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar
+                photoURL={playerPhotoURL}
+                displayName={playerName}
+                size="md"
+              />
+              <div className="flex flex-col min-w-0">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 truncate">
+                  {playerName}
+                </h2>
+                {canModifySticks && (
+                  <span className="text-xs text-blue-600 font-medium">
+                    Vos bâtons
+                  </span>
+                )}
+              </div>
+            </div>
             {!hideHistoryIcon && (
               <button
                 onClick={handleOpenLog}
@@ -203,7 +245,7 @@ const StickCounter: React.FC<StickCounterProps> = ({
 
           {/* Displaying sticks */}
           <div
-            className="bg-white border-2 border-gray-300 rounded-lg
+            className="bg-white border-2 border-gray-200 rounded-lg
                 p-3 sm:p-6 lg:p-8 mb-4 sm:mb-6 lg:mb-8
                 h-32 sm:h-40 lg:h-56  /* responsive */
                 flex items-center justify-center
@@ -234,8 +276,13 @@ const StickCounter: React.FC<StickCounterProps> = ({
             {/* REMOVE STICKS */}
             <button
               onClick={handleRemove}
-              disabled={tempCount === 0}
+              disabled={tempCount === 0 || !canModifySticks}
               className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 shadow-lg"
+              title={
+                !canModifySticks
+                  ? "Vous ne pouvez modifier que vos propres bâtons"
+                  : "Retirer un bâton"
+              }
             >
               <Minus size={16} className="sm:w-5 sm:h-5" />
             </button>
@@ -243,8 +290,13 @@ const StickCounter: React.FC<StickCounterProps> = ({
             {/* SAVE STICKS */}
             <button
               onClick={handleValidate}
-              disabled={!hasChanges}
+              disabled={!hasChanges || !canModifySticks}
               className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 shadow-lg"
+              title={
+                !canModifySticks
+                  ? "Vous ne pouvez modifier que vos propres bâtons"
+                  : "Sauvegarder les changements"
+              }
             >
               <Check size={16} className="sm:w-5 sm:h-5" />
             </button>
@@ -252,7 +304,13 @@ const StickCounter: React.FC<StickCounterProps> = ({
             {/* ADD STICKS */}
             <button
               onClick={handleAdd}
-              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors duration-200 shadow-lg"
+              disabled={!canModifySticks}
+              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 shadow-lg"
+              title={
+                !canModifySticks
+                  ? "Vous ne pouvez modifier que vos propres bâtons"
+                  : "Ajouter un bâton"
+              }
             >
               <Plus size={16} className="sm:w-5 sm:h-5" />
             </button>

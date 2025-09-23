@@ -67,7 +67,9 @@ const StickLog: React.FC<StickLogProps> = ({
                     >
                       <span
                         className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
-                          showRemovedSticks ? "translate-x-5 sm:translate-x-6" : "translate-x-1"
+                          showRemovedSticks
+                            ? "translate-x-5 sm:translate-x-6"
+                            : "translate-x-1"
                         }`}
                       />
                     </div>
@@ -75,13 +77,17 @@ const StickLog: React.FC<StickLogProps> = ({
                       {showRemovedSticks ? (
                         <>
                           <EyeOff size={14} className="mr-1 hidden sm:block" />
-                          <span className="hidden sm:inline">Masquer suppressions</span>
+                          <span className="hidden sm:inline">
+                            Masquer suppressions
+                          </span>
                           <span className="sm:hidden">Masquer</span>
                         </>
                       ) : (
                         <>
                           <Eye size={14} className="mr-1 hidden sm:block" />
-                          <span className="hidden sm:inline">Voir suppressions</span>
+                          <span className="hidden sm:inline">
+                            Voir suppressions
+                          </span>
                           <span className="sm:hidden">Suppressions</span>
                         </>
                       )}
@@ -116,7 +122,7 @@ const StickLog: React.FC<StickLogProps> = ({
                   .sort(
                     (a, b) =>
                       new Date(b.createdAt).getTime() -
-                      new Date(a.createdAt).getTime(),
+                      new Date(a.createdAt).getTime()
                   )
                   .map((stick, index) => (
                     <div

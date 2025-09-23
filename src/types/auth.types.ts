@@ -8,6 +8,8 @@ export interface AuthUser {
   lastSignIn: string;
   updatedAt?: string;
   joinedRooms?: string[]; // Array of room IDs the user has joined
+  photoURL?: string; // profile pic URL
+  bio?: string;
 }
 
 export interface LoginForm {
@@ -26,7 +28,11 @@ export interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<AuthUser>) => Promise<void>;
 }

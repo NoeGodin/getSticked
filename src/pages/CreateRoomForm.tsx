@@ -4,14 +4,12 @@ import { ArrowLeft, FileText, Users } from "lucide-react";
 import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 import { useAuth } from "../contexts/AuthContext";
-import PlayerManager from "../components/PlayerManager";
 
 export default function CreateRoomForm() {
   const { user } = useAuth();
   const [formData, setFormData] = useState<CreateRoomFormData>({
     name: "",
     description: "",
-    playerNames: ["", ""], // Start with 2 players minimum
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -20,7 +18,7 @@ export default function CreateRoomForm() {
 
   const handleInputChange = (
     field: keyof CreateRoomFormData,
-    value: string,
+    value: string
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -36,14 +34,6 @@ export default function CreateRoomForm() {
     }
   };
 
-  const handlePlayersChange = (players: string[]) => {
-    setFormData((prev) => ({ ...prev, playerNames: players }));
-  };
-
-  const handleErrorClear = (key: string) => {
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
-
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
 
@@ -53,29 +43,6 @@ export default function CreateRoomForm() {
     } else if (formData.name.length < 3) {
       newErrors.name = "Le nom doit contenir au moins 3 caractères";
     }
-
-
-    // Validate player names
-    const playerNames = formData.playerNames.filter((name) => name.trim());
-    if (playerNames.length < 2) {
-      newErrors.players = "Au moins 2 joueurs sont requis";
-    }
-
-    // Check for duplicate player names
-    const uniqueNames = new Set(
-      playerNames.map((name) => name.trim().toLowerCase()),
-    );
-    if (uniqueNames.size !== playerNames.length) {
-      newErrors.players = "Les noms des joueurs doivent être uniques";
-    }
-
-    // Validate individual player names
-    formData.playerNames.forEach((name, index) => {
-      if (name.trim() && name.length < 2) {
-        newErrors[`player${index}`] =
-          "Le nom doit contenir au moins 2 caractères";
-      }
-    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -118,11 +85,12 @@ export default function CreateRoomForm() {
             Créer un salon
           </h1>
           <p className="text-gray-600 mb-8">
-            Configurez votre salon de compétition et ajoutez les joueurs
+            Créez votre salon de compétition. Les participants pourront le
+            rejoindre via une invitation.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Room Name */}
+            {/* StickRoom Name */}
             <div>
               <label
                 htmlFor="name"
@@ -146,7 +114,6 @@ export default function CreateRoomForm() {
                 <p className="mt-1 text-sm text-red-600">{errors.name}</p>
               )}
             </div>
-
 
             {/* Description */}
             <div>
@@ -175,15 +142,6 @@ export default function CreateRoomForm() {
                 </p>
               </div>
             </div>
-
-            {/* Players */}
-            <PlayerManager
-              players={formData.playerNames}
-              onPlayersChange={handlePlayersChange}
-              errors={errors}
-              onErrorClear={handleErrorClear}
-              maxPlayers={6}
-            />
 
             {/* Submit Button */}
             <div className="flex space-x-4 pt-6">

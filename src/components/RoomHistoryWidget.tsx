@@ -1,10 +1,18 @@
 import React, { useMemo, useState } from "react";
-import { Clock, User, MessageSquare, Plus, Minus, ChevronDown } from "lucide-react";
+import {
+  Clock,
+  User,
+  MessageSquare,
+  Plus,
+  Minus,
+  ChevronDown,
+} from "lucide-react";
 import type { Room } from "../types/room.types";
 import type { Stick } from "../types/stick.types";
 
 interface RoomHistoryWidgetProps {
   room: Room;
+  virtualPlayers?: ({ id: string; name: string; sticksCount: number } | { id: string; name: string; sticks: Stick[] })[]; // Virtual players for individual model
   currentPlayerId?: string; // When specified, only show history for this player
 }
 
@@ -13,33 +21,42 @@ interface HistoryEntry extends Stick {
   playerId: string;
 }
 
-const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlayerId }) => {
+const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
+  room,
+  virtualPlayers,
+  currentPlayerId,
+}) => {
   const [visibleCount, setVisibleCount] = useState(5);
 
   // Combine all sticks from all players with player information
   const allHistoryEntries = useMemo((): HistoryEntry[] => {
     const allEntries: HistoryEntry[] = [];
-    
+
+    // Use virtual players if available, fallback to room.players for compatibility
+    const players = virtualPlayers || (room as { players?: { id: string; name: string; sticks: Stick[] }[] }).players || [];
+
     // If currentPlayerId is specified, only show history for that player
-    const playersToInclude = currentPlayerId 
-      ? room.players.filter(player => player.id === currentPlayerId)
-      : room.players;
-    
-    playersToInclude.forEach(player => {
-      player.sticks.forEach(stick => {
+    const playersToInclude = currentPlayerId
+      ? players.filter((player) => player.id === currentPlayerId)
+      : players;
+
+    playersToInclude.forEach((player) => {
+      const sticks = 'sticks' in player ? player.sticks : [];
+      sticks.forEach((stick: Stick) => {
         allEntries.push({
           ...stick,
           playerName: player.name,
-          playerId: player.id
+          playerId: player.id,
         });
       });
     });
-    
+
     // Sort by creation date, most recent first
-    return allEntries.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return allEntries.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [room.players, currentPlayerId]);
+  }, [virtualPlayers, room, currentPlayerId]);
 
   const visibleEntries = allHistoryEntries.slice(0, visibleCount);
   const hasMoreEntries = allHistoryEntries.length > visibleCount;
@@ -58,9 +75,9 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlay
     } else if (diffInHours < 24) {
       return `${diffInHours}h`;
     } else {
-      return date.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short'
+      return date.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
       });
     }
   };
@@ -74,13 +91,13 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlay
 
   const getActionText = (stick: HistoryEntry): string => {
     if (stick.isRemoved) {
-      return `a retiré ${Math.abs(stick.count)} bâton${Math.abs(stick.count) !== 1 ? 's' : ''}`;
+      return `a retiré ${Math.abs(stick.count)} bâton${Math.abs(stick.count) !== 1 ? "s" : ""}`;
     }
-    return `a ajouté ${stick.count} bâton${stick.count !== 1 ? 's' : ''}`;
+    return `a ajouté ${stick.count} bâton${stick.count !== 1 ? "s" : ""}`;
   };
 
   const loadMoreEntries = () => {
-    setVisibleCount(prev => prev + 20);
+    setVisibleCount((prev) => prev + 20);
   };
 
   if (allHistoryEntries.length === 0) {
@@ -104,10 +121,11 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlay
           <Clock size={16} />
           <h3 className="font-medium text-sm">Historique</h3>
           <span className="text-xs text-gray-500">
-            ({allHistoryEntries.length} action{allHistoryEntries.length !== 1 ? 's' : ''})
+            ({allHistoryEntries.length} action
+            {allHistoryEntries.length !== 1 ? "s" : ""})
           </span>
         </div>
-        
+
         <div className="space-y-2">
           {visibleEntries.map((entry, index) => (
             <div
@@ -116,7 +134,7 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlay
             >
               {/* Action Icon */}
               {getActionIcon(entry)}
-              
+
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-1 text-sm">
@@ -124,21 +142,22 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({ room, currentPlay
                   <span className="font-medium text-gray-900 truncate">
                     {entry.playerName}
                   </span>
-                  <span className="text-gray-600">
-                    {getActionText(entry)}
-                  </span>
+                  <span className="text-gray-600">{getActionText(entry)}</span>
                 </div>
-                
+
                 {entry.comment && (
                   <div className="flex items-center space-x-1 mt-1">
-                    <MessageSquare size={10} className="text-gray-400 flex-shrink-0" />
+                    <MessageSquare
+                      size={10}
+                      className="text-gray-400 flex-shrink-0"
+                    />
                     <p className="text-xs text-gray-600 italic truncate">
                       "{entry.comment}"
                     </p>
                   </div>
                 )}
               </div>
-              
+
               {/* Timestamp */}
               <div className="text-xs text-gray-400 flex-shrink-0">
                 {formatDate(entry.createdAt)}
