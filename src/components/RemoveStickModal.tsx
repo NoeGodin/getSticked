@@ -81,7 +81,8 @@ const RemoveStickModal: React.FC<RemoveStickModalProps> = ({
                   : `Retirer ${stickCount} bâtons pour ${playerName}`}
               </h3>
               <p className="text-sm text-gray-600">
-                Ajoutez un commentaire pour expliquer cette suppression (optionnel)
+                Ajoutez un commentaire pour expliquer cette suppression
+                (optionnel)
               </p>
             </div>
 

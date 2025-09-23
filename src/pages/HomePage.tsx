@@ -12,12 +12,12 @@ import { useAuth } from "../contexts/AuthContext";
 import type { Room } from "../types/room.types";
 import { formatShortDate } from "../utils/helpers.ts";
 import {
-  getDocs,
-  query,
   collection,
-  where,
-  orderBy,
   documentId,
+  getDocs,
+  orderBy,
+  query,
+  where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { UserService } from "../services/user.service.ts";
@@ -26,7 +26,20 @@ import { RoomService } from "../services/room.service.ts";
 const HomePage = () => {
   const { user, signOut } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [roomStats, setRoomStats] = useState<Record<string, { totalSticks: number; players: { id: string; name: string; sticksCount: number; isLeader?: boolean }[] }>>({});
+  const [roomStats, setRoomStats] = useState<
+    Record<
+      string,
+      {
+        totalSticks: number;
+        players: {
+          id: string;
+          name: string;
+          sticksCount: number;
+          isLeader?: boolean;
+        }[];
+      }
+    >
+  >({});
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
@@ -155,10 +168,13 @@ const HomePage = () => {
       );
 
       // Sort by stick count descending
-      const sortedPlayers = memberPlayers.sort((a, b) => b.sticksCount - a.sticksCount);
+      const sortedPlayers = memberPlayers.sort(
+        (a, b) => b.sticksCount - a.sticksCount
+      );
 
       // Mark player(s) with the most sticks
-      const maxSticks = sortedPlayers.length > 0 ? sortedPlayers[0].sticksCount : 0;
+      const maxSticks =
+        sortedPlayers.length > 0 ? sortedPlayers[0].sticksCount : 0;
       const playersWithLeaderInfo = sortedPlayers.map((player) => ({
         ...player,
         isLeader: player.sticksCount === maxSticks && maxSticks > 0,
@@ -221,7 +237,7 @@ const HomePage = () => {
           </button>
         </div>
 
-        {/* Room Cards */}
+        {/* StickRoom Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-0">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
@@ -296,33 +312,40 @@ const HomePage = () => {
                     )}
 
                     <div className="space-y-2 mb-4">
-                      {stickCounts.players.map((player: { id: string; name: string; sticksCount: number; isLeader?: boolean }) => (
-                        <div
-                          key={player.id}
-                          className="flex items-center justify-between text-sm"
-                        >
-                          <div className="flex items-center space-x-2">
-                            {player.isLeader && (
-                              <Crown
-                                size={14}
-                                className="text-yellow-500 flex-shrink-0"
-                              />
-                            )}
-                            <span className="text-gray-700 font-medium">
-                              {player.name}
+                      {stickCounts.players.map(
+                        (player: {
+                          id: string;
+                          name: string;
+                          sticksCount: number;
+                          isLeader?: boolean;
+                        }) => (
+                          <div
+                            key={player.id}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <div className="flex items-center space-x-2">
+                              {player.isLeader && (
+                                <Crown
+                                  size={14}
+                                  className="text-yellow-500 flex-shrink-0"
+                                />
+                              )}
+                              <span className="text-gray-700 font-medium">
+                                {player.name}
+                              </span>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${
+                                player.isLeader
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {player.sticksCount} bâtons
                             </span>
                           </div>
-                          <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              player.isLeader
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                          >
-                            {player.sticksCount} bâtons
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
