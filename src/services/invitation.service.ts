@@ -2,7 +2,6 @@ import {
   addDoc,
   collection,
   doc,
-  getDoc,
   getDocs,
   query,
   updateDoc,
@@ -18,7 +17,7 @@ import type { AuthUser } from "../types/auth.types";
 import { RoomService } from "./room.service";
 import { UserService } from "./user.service";
 import { COLLECTIONS, createTimestamp } from "../utils/firestore";
-import { withErrorHandler, AuthUtils, ValidationUtils } from "../utils/service";
+import { AuthUtils, ValidationUtils, withErrorHandler } from "../utils/service";
 
 // Generate a random token for invitation
 const generateInvitationToken = (): string => {
@@ -42,14 +41,14 @@ export class InvitationService {
     request: CreateInvitationRequest,
     createdBy: AuthUser
   ): Promise<InvitationLinkData> {
-    ValidationUtils.validateRequired(request.roomId, "Room ID");
+    ValidationUtils.validateRequired(request.roomId, "StickRoom ID");
     ValidationUtils.validateRequired(createdBy.uid, "User ID");
 
     return withErrorHandler(async () => {
       // Verify user owns the room
       const room = await RoomService.getRoomById(request.roomId);
       if (!room) {
-        throw new Error("Room not found");
+        throw new Error("StickRoom not found");
       }
 
       // Check if user has access to the room (is owner or member)
@@ -183,110 +182,5 @@ export class InvitationService {
         roomName: invitation.roomName,
       };
     }, "Failed to use invitation");
-  }
-
-  /**
-   * Get all active invitations for a room
-   */
-  static async getRoomInvitations(
-    roomId: string,
-    userId: string
-  ): Promise<RoomInvitation[]> {
-    ValidationUtils.validateRequired(roomId, "Room ID");
-    ValidationUtils.validateRequired(userId, "User ID");
-
-    return withErrorHandler(async () => {
-      // Verify user owns the room
-      const room = await RoomService.getRoomById(roomId);
-      if (!room) {
-        throw new Error("Room not found");
-      }
-
-      AuthUtils.ensureRoomOwnership(room.owner.uid, userId, "view invitations");
-
-      const q = query(
-        collection(db, COLLECTIONS.ROOM_INVITATIONS),
-        where("roomId", "==", roomId),
-        where("isActive", "==", true)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          }) as RoomInvitation
-      );
-    }, "Failed to get room invitations");
-  }
-
-  /**
-   * Deactivate an invitation
-   */
-  static async deactivateInvitation(
-    invitationId: string,
-    userId: string
-  ): Promise<void> {
-    ValidationUtils.validateRequired(invitationId, "Invitation ID");
-    ValidationUtils.validateRequired(userId, "User ID");
-
-    return withErrorHandler(async () => {
-      const invitationDoc = await getDoc(
-        doc(db, COLLECTIONS.ROOM_INVITATIONS, invitationId)
-      );
-
-      if (!invitationDoc.exists()) {
-        throw new Error("Invitation not found");
-      }
-
-      const invitation = invitationDoc.data() as RoomInvitation;
-
-      // Verify user owns the room
-      const room = await RoomService.getRoomById(invitation.roomId);
-      if (!room) {
-        throw new Error("Room not found");
-      }
-
-      AuthUtils.ensureRoomOwnership(
-        room.owner.uid,
-        userId,
-        "deactivate invitations"
-      );
-
-      await updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, invitationId), {
-        isActive: false,
-      });
-    }, "Failed to deactivate invitation");
-  }
-
-  /**
-   * Clean up expired invitations (utility function)
-   */
-  static async cleanupExpiredInvitations(): Promise<void> {
-    return withErrorHandler(async () => {
-      const now = createTimestamp();
-      const q = query(
-        collection(db, COLLECTIONS.ROOM_INVITATIONS),
-        where("isActive", "==", true)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      const batch = [];
-      for (const docSnap of querySnapshot.docs) {
-        const invitation = docSnap.data() as RoomInvitation;
-        if (invitation.expiresAt < now) {
-          batch.push(
-            updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, docSnap.id), {
-              isActive: false,
-            })
-          );
-        }
-      }
-
-      await Promise.all(batch);
-    }, "Failed to cleanup expired invitations");
   }
 }

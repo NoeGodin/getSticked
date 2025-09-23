@@ -1,27 +1,27 @@
 import {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
   getDoc,
+  QueryDocumentSnapshot,
   serverTimestamp,
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import type {
-  ActionHistory,
-  CreateRoomForm,
-  Player,
-  Room,
-} from "../types/room.types";
-import type { Stick } from "../types/stick.types";
+import type { ActionHistory, CreateRoomForm, Room } from "../types/room.types";
 import type { AuthUser } from "../types/auth.types";
+import { UserRoomSticksService } from "./userRoomSticks.service";
 
 const ROOMS_COLLECTION = "rooms";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const convertFirestoreToRoom = (doc: any, includeHistory: boolean = true): Room => {
+const convertFirestoreToRoom = (
+  doc: QueryDocumentSnapshot,
+  includeHistory: boolean = true
+): Room => {
   const data = doc.data();
   return {
     ...data,
@@ -34,36 +34,38 @@ const convertFirestoreToRoom = (doc: any, includeHistory: boolean = true): Room 
       data.updatedAt instanceof Timestamp
         ? data.updatedAt.toDate().toISOString()
         : data.updatedAt,
-    history: includeHistory ? (Array.isArray(data.history) ? data.history : []) : [],
+    history: includeHistory
+      ? Array.isArray(data.history)
+        ? data.history
+        : []
+      : [],
   } as Room;
 };
 
 export class RoomService {
-  // Public method to convert Firestore docs to Room objects
-  static convertDocToRoom(doc: any, includeHistory: boolean = false): Room {
+  // Public method to convert Firestore docs to StickRoom objects
+  static convertDocToRoom(
+    doc: QueryDocumentSnapshot,
+    includeHistory: boolean = false
+  ): Room {
     return convertFirestoreToRoom(doc, includeHistory);
   }
 
   static async createRoom(
     roomData: CreateRoomForm,
-    owner: AuthUser,
+    owner: AuthUser
   ): Promise<string> {
     try {
-      const players: Player[] = roomData.playerNames.map((name, index) => ({
-        id: `player${index + 1}`,
-        name: name.trim(),
-        sticks: [],
-      }));
-
+      // new model, empty room
       const newRoom: Omit<Room, "updatedAt"> = {
         name: roomData.name,
         description: roomData.description,
-        players,
         owner: {
           uid: owner.uid,
           displayName: owner.displayName,
         },
         createdAt: new Date().toISOString(),
+        memberIds: [],
         history: [
           {
             id: `action_${Date.now()}`,
@@ -73,20 +75,27 @@ export class RoomService {
               displayName: owner.displayName,
             },
             timestamp: new Date().toISOString(),
-            details: "Room created",
+            details: "StickRoom created",
           },
         ],
       };
 
       const docRef = await addDoc(collection(db, ROOMS_COLLECTION), newRoom);
+
+      // Owner join automatically
+      await UserRoomSticksService.joinRoom(owner.uid, docRef.id, owner);
+      await this.addUserToRoom(docRef.id, owner.uid, owner);
+
       return docRef.id;
     } catch (error) {
       throw new Error(`Erreur lors de la création de la room: ${error}`);
     }
   }
 
-
-  static async getRoomById(roomId: string, includeHistory: boolean = true): Promise<Room | null> {
+  static async getRoomById(
+    roomId: string,
+    includeHistory: boolean = true
+  ): Promise<Room | null> {
     try {
       const docRef = doc(db, ROOMS_COLLECTION, roomId);
       const docSnap = await getDoc(docRef);
@@ -105,103 +114,152 @@ export class RoomService {
     return this.getRoomById(roomId, false);
   }
 
-  static async updatePlayerSticks(
+  static async addUserToRoom(
     roomId: string,
-    playerId: string,
-    sticks: Stick[],
-    performedBy: AuthUser,
-    actionHistory?: {
-      type: 'stick_added' | 'stick_removed';
-      count: number;
-      details: string;
-    },
+    userId: string,
+    performedBy: AuthUser
   ): Promise<void> {
     try {
-      // Get the current room
-      const room = await RoomService.getRoomById(roomId);
+      const room = await this.getRoomById(roomId);
       if (!room) {
-        throw new Error("Room not found");
+        throw new Error("StickRoom not found");
       }
 
-      const player = room.players.find((p) => p.id === playerId);
-      if (!player) {
-        throw new Error("Player not found");
+      // Check if already member
+      if (room.memberIds.includes(userId)) {
+        return;
       }
 
-      // Update the specific player's sticks
-      const updatedPlayers = room.players.map((player) =>
-        player.id === playerId ? { ...player, sticks } : player,
+      // Add user to list
+      const docRef = doc(db, ROOMS_COLLECTION, roomId);
+      await updateDoc(docRef, {
+        memberIds: arrayUnion(userId),
+        updatedAt: serverTimestamp(),
+      });
+
+      await this.addActionToHistory(roomId, {
+        type: "user_joined",
+        userId,
+        performedBy,
+        details: `${performedBy.displayName} a rejoint la room`,
+      });
+    } catch (error) {
+      throw new Error(
+        `Erreur lors de l'ajout de l'utilisateur à la room: ${error}`
       );
+    }
+  }
 
-      // Add action to history if provided
-      let updatedHistory = room.history;
-      if (actionHistory) {
-        const newAction: ActionHistory = {
-          id: `action_${Date.now()}`,
-          type: actionHistory.type,
-          playerId,
-          playerName: player.name,
-          performedBy: {
-            uid: performedBy.uid,
-            displayName: performedBy.displayName,
-          },
-          timestamp: new Date().toISOString(),
-          details: actionHistory.details,
-        };
-
-        updatedHistory = [...room.history, newAction];
+  static async removeUserFromRoom(
+    roomId: string,
+    userId: string,
+    performedBy: AuthUser
+  ): Promise<void> {
+    try {
+      const room = await this.getRoomById(roomId);
+      if (!room) {
+        throw new Error("StickRoom not found");
       }
 
       const docRef = doc(db, ROOMS_COLLECTION, roomId);
       await updateDoc(docRef, {
-        players: updatedPlayers,
+        memberIds: arrayRemove(userId),
+        updatedAt: serverTimestamp(),
+      });
+
+      await UserRoomSticksService.leaveRoom(userId, roomId);
+
+      await this.addActionToHistory(roomId, {
+        type: "user_left",
+        userId,
+        performedBy,
+        details: `${performedBy.displayName} a quitté la room`,
+      });
+    } catch (error) {
+      throw new Error(
+        `Erreur lors de la suppression de l'utilisateur de la room: ${error}`
+      );
+    }
+  }
+
+  static async addActionToHistory(
+    roomId: string,
+    action: {
+      type: ActionHistory["type"];
+      userId?: string;
+      performedBy: AuthUser;
+      details: string;
+    }
+  ): Promise<void> {
+    try {
+      const room = await this.getRoomById(roomId);
+      if (!room) {
+        throw new Error("StickRoom not found");
+      }
+
+      const newAction: ActionHistory = {
+        id: `action_${Date.now()}`,
+        type: action.type,
+        userId: action.userId,
+        performedBy: {
+          uid: action.performedBy.uid,
+          displayName: action.performedBy.displayName,
+        },
+        timestamp: new Date().toISOString(),
+        details: action.details,
+      };
+
+      const updatedHistory = [...room.history, newAction];
+
+      const docRef = doc(db, ROOMS_COLLECTION, roomId);
+      await updateDoc(docRef, {
         history: updatedHistory,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
-      throw new Error(`Erreur lors de la mise à jour des bâtons: ${error}`);
+      throw new Error(`Erreur lors de l'ajout à l'historique: ${error}`);
     }
   }
 
   static async updateRoomDetails(updatedRoom: Room): Promise<void> {
     try {
       if (!updatedRoom.id) {
-        throw new Error("Room ID is required for update");
+        throw new Error("StickRoom ID is required for update");
       }
 
       const docRef = doc(db, ROOMS_COLLECTION, updatedRoom.id);
 
-      // Prepare update data, excluding the id field
+      // Update only these fields
       await updateDoc(docRef, {
         name: updatedRoom.name,
         description: updatedRoom.description,
-        players: updatedRoom.players,
-        createdAt: updatedRoom.createdAt,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
       throw new Error(
-        `Erreur lors de la mise à jour des détails de la room: ${error}`,
+        `Erreur lors de la mise à jour des détails de la room: ${error}`
       );
     }
   }
 
   static async deleteRoom(
     roomId: string,
-    performedBy: AuthUser,
+    performedBy: AuthUser
   ): Promise<void> {
     try {
-      // First verify the room exists and user is owner
       const room = await RoomService.getRoomById(roomId);
       if (!room) {
-        throw new Error("Room not found");
+        throw new Error("StickRoom not found");
       }
 
-      // Check if user is the owner
+      // user is owner
       if (room.owner.uid !== performedBy.uid) {
         throw new Error("Only room owner can delete the room");
       }
 
+      await UserRoomSticksService.deleteAllRoomSticks(roomId);
+
+      // Delete room
       await deleteDoc(doc(db, ROOMS_COLLECTION, roomId));
     } catch (error) {
       throw new Error(`Erreur lors de la suppression de la room: ${error}`);
