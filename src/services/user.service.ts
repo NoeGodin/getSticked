@@ -56,4 +56,14 @@ export class UserService {
       });
     }, "Error removing room from user");
   }
+
+  static async updateUserProfile(uid: string, updates: Partial<AuthUser>): Promise<void> {
+    return withErrorHandler(async () => {
+      const userRef = doc(db, COLLECTIONS.USERS, uid);
+      await updateDoc(userRef, {
+        ...updates,
+        updatedAt: createTimestamp(),
+      });
+    }, "Error updating user profile");
+  }
 }

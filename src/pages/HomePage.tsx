@@ -6,6 +6,8 @@ import {
   MessageSquare,
   Plus,
   Users,
+  User,
+  Home,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -22,6 +24,7 @@ import {
 import { db } from "../config/firebase";
 import { UserService } from "../services/user.service.ts";
 import { RoomService } from "../services/room.service.ts";
+import ProfileTab from "../components/ProfileTab.tsx";
 
 const HomePage = () => {
   const { user, signOut } = useAuth();
@@ -41,6 +44,8 @@ const HomePage = () => {
     >
   >({});
   const [loading, setLoading] = useState<boolean>(true);
+  type TabType = "rooms" | "profile";
+  const [activeTab, setActiveTab] = useState<TabType>("rooms");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -193,6 +198,11 @@ const HomePage = () => {
     }
   };
 
+  // Si on est sur l'onglet profil, afficher le ProfileTab
+  if (activeTab === "profile") {
+    return <ProfileTab onBack={() => setActiveTab("rooms")} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
@@ -223,6 +233,34 @@ const HomePage = () => {
             <p className="text-gray-600 text-sm sm:text-base px-4">
               Crée un salon pour n'importe quelle compétition entre 2 amis !
             </p>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-1 flex">
+            <button
+              onClick={() => setActiveTab("rooms")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors duration-200 ${
+                activeTab === "rooms"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              <Home size={18} />
+              <span>Mes Salons</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors duration-200 ${
+                (activeTab as string) === "profile"
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              <User size={18} />
+              <span>Mon Profil</span>
+            </button>
           </div>
         </div>
 

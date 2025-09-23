@@ -52,6 +52,8 @@ const StickRoom = () => {
             id: memberId,
             name: memberData?.displayName || "Utilisateur inconnu",
             sticks: memberSticks?.sticks || [],
+            photoURL: memberData?.photoURL,
+            bio: memberData?.bio,
           };
         } catch (error) {
           console.warn(`Error loading member ${memberId}:`, error);
@@ -59,6 +61,8 @@ const StickRoom = () => {
             id: memberId,
             name: "Utilisateur inconnu",
             sticks: [],
+            photoURL: undefined,
+            bio: undefined,
           };
         }
       });
@@ -390,6 +394,7 @@ const StickRoom = () => {
                   roomId={room.id}
                   player={player.id}
                   onSticksUpdate={() => handleSticksUpdate(player.id)}
+                  playerPhotoURL={player.photoURL}
                 />
               ))}
             </div>

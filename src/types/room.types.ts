@@ -52,4 +52,6 @@ export interface Player {
   id: string;
   name: string;
   sticks: Stick[];
+  photoURL?: string;
+  bio?: string;
 }

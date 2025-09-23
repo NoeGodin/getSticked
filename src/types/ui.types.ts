@@ -7,6 +7,7 @@ export interface StickCounterProps {
   player: string;
   onSticksUpdate?: (newSticks: Stick[]) => void;
   hideHistoryIcon?: boolean; // Hide history icon when room > 4 players in single view
+  playerPhotoURL?: string;
 }
 
 export interface StickLogProps {

@@ -1,5 +1,6 @@
 import React from "react";
 import { Crown, Users, ChevronRight } from "lucide-react";
+import Avatar from "./Avatar";
 import type { Player } from "../types/room.types";
 import { getTotalSticks } from "../utils/helpers";
 
@@ -58,8 +59,14 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="font-medium text-gray-900">{player.name}</h3>
+                <Avatar 
+                  photoURL={player.photoURL}
+                  displayName={player.name}
+                  size="md"
+                />
+
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-gray-900 truncate">{player.name}</h3>
                   <p className="text-sm text-gray-500">
                     {player.sticks.length} action
                     {player.sticks.length !== 1 ? "s" : ""}

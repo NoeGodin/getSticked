@@ -8,6 +8,8 @@ export interface AuthUser {
   lastSignIn: string;
   updatedAt?: string;
   joinedRooms?: string[]; // Array of room IDs the user has joined
+  photoURL?: string; // profile pic URL
+  bio?: string;
 }
 
 export interface LoginForm {

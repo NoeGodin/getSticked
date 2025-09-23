@@ -53,6 +53,7 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
                 onSticksUpdate(player.id, newSticks)
               }
               hideHistoryIcon={(virtualPlayers || []).length > 4}
+              playerPhotoURL={player.photoURL}
             />
           </div>
         </div>
