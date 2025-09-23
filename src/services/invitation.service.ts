@@ -17,8 +17,8 @@ import type {
 import type { AuthUser } from "../types/auth.types";
 import { RoomService } from "./room.service";
 import { UserService } from "./user.service";
-
-const INVITATIONS_COLLECTION = "room_invitations";
+import { COLLECTIONS, createTimestamp } from "../utils/firestore";
+import { withErrorHandler, AuthUtils, ValidationUtils } from "../utils/service";
 
 // Generate a random token for invitation
 const generateInvitationToken = (): string => {
@@ -40,9 +40,12 @@ export class InvitationService {
    */
   static async createInvitation(
     request: CreateInvitationRequest,
-    createdBy: AuthUser,
+    createdBy: AuthUser
   ): Promise<InvitationLinkData> {
-    try {
+    ValidationUtils.validateRequired(request.roomId, "Room ID");
+    ValidationUtils.validateRequired(createdBy.uid, "User ID");
+
+    return withErrorHandler(async () => {
       // Verify user owns the room
       const room = await RoomService.getRoomById(request.roomId);
       if (!room) {
@@ -51,12 +54,13 @@ export class InvitationService {
 
       // Check if user has access to the room (is owner or member)
       const userData = await UserService.getUserById(createdBy.uid);
-      const isOwner = room.owner.uid === createdBy.uid;
-      const isMember = userData?.joinedRooms?.includes(request.roomId) || false;
-      
-      if (!isOwner && !isMember) {
-        throw new Error("Only room members can create invitations");
-      }
+      AuthUtils.ensureRoomAccess(
+        room.owner.uid,
+        userData?.joinedRooms,
+        request.roomId,
+        createdBy.uid,
+        "create invitations"
+      );
 
       // Calculate expiration (default 24 hours)
       const expiresInHours = request.expiresInHours || 24;
@@ -67,14 +71,14 @@ export class InvitationService {
       const token = generateInvitationToken();
 
       // Create invitation object (omit undefined fields for Firestore)
-      const invitation: any = {
+      const invitation: Partial<RoomInvitation> = {
         roomId: request.roomId,
         token,
         createdBy: {
           uid: createdBy.uid,
           displayName: createdBy.displayName,
         },
-        createdAt: new Date().toISOString(),
+        createdAt: createTimestamp(),
         expiresAt: expiresAt.toISOString(),
         usedCount: 0,
         isActive: true,
@@ -87,7 +91,7 @@ export class InvitationService {
       }
 
       // Save to Firestore
-      await addDoc(collection(db, INVITATIONS_COLLECTION), invitation);
+      await addDoc(collection(db, COLLECTIONS.ROOM_INVITATIONS), invitation);
 
       // Generate URL
       const origin =
@@ -101,9 +105,7 @@ export class InvitationService {
         expiresAt: expiresAt.toISOString(),
         maxUses: request.maxUses,
       };
-    } catch (error) {
-      throw new Error(`Failed to create invitation: ${error}`);
-    }
+    }, "Failed to create invitation");
   }
 
   /**
@@ -111,14 +113,17 @@ export class InvitationService {
    */
   static async useInvitation(
     token: string,
-    user: AuthUser,
+    user: AuthUser
   ): Promise<{ roomId: string; roomName: string }> {
-    try {
+    ValidationUtils.validateRequired(token, "Invitation token");
+    ValidationUtils.validateRequired(user.uid, "User ID");
+
+    return withErrorHandler(async () => {
       // Find invitation by token
       const q = query(
-        collection(db, INVITATIONS_COLLECTION),
+        collection(db, COLLECTIONS.ROOM_INVITATIONS),
         where("token", "==", token),
-        where("isActive", "==", true),
+        where("isActive", "==", true)
       );
 
       const querySnapshot = await getDocs(q);
@@ -138,7 +143,7 @@ export class InvitationService {
       const expiresAt = new Date(invitation.expiresAt);
       if (now > expiresAt) {
         // Deactivate expired invitation
-        await updateDoc(doc(db, INVITATIONS_COLLECTION, invitation.id!), {
+        await updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, invitation.id!), {
           isActive: false,
         });
         throw new Error("This invitation link has expired");
@@ -146,7 +151,7 @@ export class InvitationService {
 
       // Check usage limit
       if (invitation.maxUses && invitation.usedCount >= invitation.maxUses) {
-        await updateDoc(doc(db, INVITATIONS_COLLECTION, invitation.id!), {
+        await updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, invitation.id!), {
           isActive: false,
         });
         throw new Error("This invitation link has reached its usage limit");
@@ -154,12 +159,14 @@ export class InvitationService {
 
       // Check if user is already in the room
       const userData = await UserService.getUserById(user.uid);
-      const isAlreadyJoined =
-        userData?.joinedRooms?.includes(invitation.roomId) || false;
+      const isAlreadyJoined = AuthUtils.isRoomMember(
+        userData?.joinedRooms,
+        invitation.roomId
+      );
 
       // Check if user is the owner
       const room = await RoomService.getRoomById(invitation.roomId);
-      const isOwner = room?.owner.uid === user.uid;
+      const isOwner = AuthUtils.isRoomOwner(room?.owner.uid || "", user.uid);
 
       if (!isOwner && !isAlreadyJoined) {
         // Add user to room
@@ -167,7 +174,7 @@ export class InvitationService {
       }
 
       // Increment usage count
-      await updateDoc(doc(db, INVITATIONS_COLLECTION, invitation.id!), {
+      await updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, invitation.id!), {
         usedCount: invitation.usedCount + 1,
       });
 
@@ -175,9 +182,7 @@ export class InvitationService {
         roomId: invitation.roomId,
         roomName: invitation.roomName,
       };
-    } catch (error) {
-      throw new Error(`Failed to use invitation: ${error}`);
-    }
+    }, "Failed to use invitation");
   }
 
   /**
@@ -185,30 +190,36 @@ export class InvitationService {
    */
   static async getRoomInvitations(
     roomId: string,
-    userId: string,
+    userId: string
   ): Promise<RoomInvitation[]> {
-    try {
+    ValidationUtils.validateRequired(roomId, "Room ID");
+    ValidationUtils.validateRequired(userId, "User ID");
+
+    return withErrorHandler(async () => {
       // Verify user owns the room
       const room = await RoomService.getRoomById(roomId);
-      if (!room || room.owner.uid !== userId) {
-        throw new Error("Only room owner can view invitations");
+      if (!room) {
+        throw new Error("Room not found");
       }
 
+      AuthUtils.ensureRoomOwnership(room.owner.uid, userId, "view invitations");
+
       const q = query(
-        collection(db, INVITATIONS_COLLECTION),
+        collection(db, COLLECTIONS.ROOM_INVITATIONS),
         where("roomId", "==", roomId),
-        where("isActive", "==", true),
+        where("isActive", "==", true)
       );
 
       const querySnapshot = await getDocs(q);
 
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as RoomInvitation[];
-    } catch (error) {
-      throw new Error(`Failed to get room invitations: ${error}`);
-    }
+      return querySnapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          }) as RoomInvitation
+      );
+    }, "Failed to get room invitations");
   }
 
   /**
@@ -216,11 +227,14 @@ export class InvitationService {
    */
   static async deactivateInvitation(
     invitationId: string,
-    userId: string,
+    userId: string
   ): Promise<void> {
-    try {
+    ValidationUtils.validateRequired(invitationId, "Invitation ID");
+    ValidationUtils.validateRequired(userId, "User ID");
+
+    return withErrorHandler(async () => {
       const invitationDoc = await getDoc(
-        doc(db, INVITATIONS_COLLECTION, invitationId),
+        doc(db, COLLECTIONS.ROOM_INVITATIONS, invitationId)
       );
 
       if (!invitationDoc.exists()) {
@@ -231,27 +245,31 @@ export class InvitationService {
 
       // Verify user owns the room
       const room = await RoomService.getRoomById(invitation.roomId);
-      if (!room || room.owner.uid !== userId) {
-        throw new Error("Only room owner can deactivate invitations");
+      if (!room) {
+        throw new Error("Room not found");
       }
 
-      await updateDoc(doc(db, INVITATIONS_COLLECTION, invitationId), {
+      AuthUtils.ensureRoomOwnership(
+        room.owner.uid,
+        userId,
+        "deactivate invitations"
+      );
+
+      await updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, invitationId), {
         isActive: false,
       });
-    } catch (error) {
-      throw new Error(`Failed to deactivate invitation: ${error}`);
-    }
+    }, "Failed to deactivate invitation");
   }
 
   /**
    * Clean up expired invitations (utility function)
    */
   static async cleanupExpiredInvitations(): Promise<void> {
-    try {
-      const now = new Date().toISOString();
+    return withErrorHandler(async () => {
+      const now = createTimestamp();
       const q = query(
-        collection(db, INVITATIONS_COLLECTION),
-        where("isActive", "==", true),
+        collection(db, COLLECTIONS.ROOM_INVITATIONS),
+        where("isActive", "==", true)
       );
 
       const querySnapshot = await getDocs(q);
@@ -261,16 +279,14 @@ export class InvitationService {
         const invitation = docSnap.data() as RoomInvitation;
         if (invitation.expiresAt < now) {
           batch.push(
-            updateDoc(doc(db, INVITATIONS_COLLECTION, docSnap.id), {
+            updateDoc(doc(db, COLLECTIONS.ROOM_INVITATIONS, docSnap.id), {
               isActive: false,
-            }),
+            })
           );
         }
       }
 
       await Promise.all(batch);
-    } catch (error) {
-      console.error("Failed to cleanup expired invitations:", error);
-    }
+    }, "Failed to cleanup expired invitations");
   }
 }

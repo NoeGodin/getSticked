@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
-import { Calendar, Crown, LogOut, MessageSquare, Plus, Users } from "lucide-react";
+import {
+  Calendar,
+  Crown,
+  LogOut,
+  MessageSquare,
+  Plus,
+  Users,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import type { Room } from "../types/room.types";
-import { formatShortDate, getTotalSticks } from "../utils/helpers.ts";
-import { getDocs, query, collection, where, orderBy, documentId } from "firebase/firestore";
+import { formatShortDate } from "../utils/helpers.ts";
+import {
+  getDocs,
+  query,
+  collection,
+  where,
+  orderBy,
+  documentId,
+} from "firebase/firestore";
 import { db } from "../config/firebase";
 import { UserService } from "../services/user.service.ts";
 import { RoomService } from "../services/room.service.ts";
@@ -12,13 +26,14 @@ import { RoomService } from "../services/room.service.ts";
 const HomePage = () => {
   const { user, signOut } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomStats, setRoomStats] = useState<Record<string, { totalSticks: number; players: { id: string; name: string; sticksCount: number; isLeader?: boolean }[] }>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadUserRooms = async () => {
       if (!user) return;
-      
+
       setLoading(true);
       try {
         // Get all rooms where user is the owner
@@ -27,11 +42,11 @@ const HomePage = () => {
           where("owner.uid", "==", user.uid),
           orderBy("createdAt", "desc")
         );
-        
+
         const ownedRoomsSnapshot = await getDocs(ownedRoomsQuery);
         const ownedRooms = ownedRoomsSnapshot.docs
-          .map(doc => RoomService.convertDocToRoom(doc, false))
-          .filter(room => room.owner?.uid); // Filter out invalid data
+          .map((doc) => RoomService.convertDocToRoom(doc, false))
+          .filter((room) => room.owner?.uid); // Filter out invalid data
 
         // Get user data to fetch joined rooms
         const userData = await UserService.getUserById(user.uid);
@@ -43,17 +58,39 @@ const HomePage = () => {
             collection(db, "rooms"),
             where(documentId(), "in", userData.joinedRooms)
           );
-          
+
           const joinedRoomsSnapshot = await getDocs(joinedRoomsQuery);
           joinedRooms = joinedRoomsSnapshot.docs
-            .map(doc => RoomService.convertDocToRoom(doc, false))
-            .filter(room => room.owner?.uid && room.owner.uid !== user.uid) // Exclude owned rooms and invalid data
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Sort manually
+            .map((doc) => RoomService.convertDocToRoom(doc, false))
+            .filter((room) => room.owner?.uid && room.owner.uid !== user.uid) // Exclude owned rooms and invalid data
+            .sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+            ); // Sort manually
         }
 
         // Combine owned and joined rooms
         const allRooms = [...ownedRooms, ...joinedRooms];
         setRooms(allRooms);
+
+        // Load statistics for each room
+        const statsPromises = allRooms.map(async (room) => {
+          try {
+            const stats = await calculateTotalSticks(room);
+            return { [room.id!]: stats };
+          } catch (error) {
+            console.warn(`Error loading stats for room ${room.id}:`, error);
+            return { [room.id!]: { players: [], totalSticks: 0 } };
+          }
+        });
+
+        const statsResults = await Promise.all(statsPromises);
+        const allStats = statsResults.reduce(
+          (acc, curr) => ({ ...acc, ...curr }),
+          {}
+        );
+        setRoomStats(allStats);
       } catch (error) {
         console.error("Error loading rooms:", error);
         setRooms([]);
@@ -79,27 +116,65 @@ const HomePage = () => {
     }
   };
 
-  const calculateTotalSticks = (room: Room) => {
-    const playerTotals = room.players.map(player => ({
-      id: player.id,
-      name: player.name,
-      total: getTotalSticks(player.sticks)
-    }));
-    
-    // Sort by stick count descending
-    const sortedPlayers = playerTotals.sort((a, b) => b.total - a.total);
-    
-    // Mark player(s) with the most sticks
-    const maxSticks = sortedPlayers.length > 0 ? sortedPlayers[0].total : 0;
-    const playersWithLeaderInfo = sortedPlayers.map(player => ({
-      ...player,
-      isLeader: player.total === maxSticks && maxSticks > 0
-    }));
-    
-    return {
-      players: playersWithLeaderInfo,
-      total: playerTotals.reduce((sum, player) => sum + player.total, 0),
-    };
+  const calculateTotalSticks = async (room: Room) => {
+    // Pour le modèle individuel, nous devons obtenir les statistiques depuis UserRoomSticksService
+    try {
+      const { UserRoomSticksService } = await import(
+        "../services/userRoomSticks.service"
+      );
+      const stats = await UserRoomSticksService.getRoomStats(room.id!);
+
+      // Créer une liste de "joueurs" fictifs pour l'affichage basée sur les vrais membres
+      const memberPlayers = await Promise.all(
+        room.memberIds?.map(async (memberId) => {
+          try {
+            const { UserService } = await import("../services/user.service");
+            const memberData = await UserService.getUserById(memberId);
+            const memberSticks = await UserRoomSticksService.getUserRoomSticks(
+              memberId,
+              room.id!
+            );
+            const total = memberSticks
+              ? UserRoomSticksService.getTotalActiveSticks(memberSticks)
+              : 0;
+
+            return {
+              id: memberId,
+              name: memberData?.displayName || "Utilisateur inconnu",
+              sticksCount: total,
+            };
+          } catch (error) {
+            console.warn(`Error loading member ${memberId}:`, error);
+            return {
+              id: memberId,
+              name: "Utilisateur inconnu",
+              sticksCount: 0,
+            };
+          }
+        }) || []
+      );
+
+      // Sort by stick count descending
+      const sortedPlayers = memberPlayers.sort((a, b) => b.sticksCount - a.sticksCount);
+
+      // Mark player(s) with the most sticks
+      const maxSticks = sortedPlayers.length > 0 ? sortedPlayers[0].sticksCount : 0;
+      const playersWithLeaderInfo = sortedPlayers.map((player) => ({
+        ...player,
+        isLeader: player.sticksCount === maxSticks && maxSticks > 0,
+      }));
+
+      return {
+        players: playersWithLeaderInfo,
+        totalSticks: stats.totalSticks,
+      };
+    } catch (error) {
+      console.error("Error calculating stick totals:", error);
+      return {
+        players: [],
+        totalSticks: 0,
+      };
+    }
   };
 
   return (
@@ -123,7 +198,7 @@ const HomePage = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Main title - centered */}
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-800 mb-2">
@@ -183,7 +258,10 @@ const HomePage = () => {
             </div>
           ) : (
             rooms.map((room) => {
-              const stickCounts = calculateTotalSticks(room);
+              const stickCounts = roomStats[room.id!] || {
+                players: [],
+                total: 0,
+              };
               const isOwner = room.owner.uid === user?.uid;
 
               return (
@@ -206,7 +284,7 @@ const HomePage = () => {
                       </div>
                       <div className="flex items-center ml-2">
                         <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full whitespace-nowrap">
-                          {stickCounts.total} bâtons
+                          {stickCounts.totalSticks} bâtons
                         </span>
                       </div>
                     </div>
@@ -218,22 +296,30 @@ const HomePage = () => {
                     )}
 
                     <div className="space-y-2 mb-4">
-                      {stickCounts.players.map((player) => (
-                        <div key={player.id} className="flex items-center justify-between text-sm">
+                      {stickCounts.players.map((player: { id: string; name: string; sticksCount: number; isLeader?: boolean }) => (
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between text-sm"
+                        >
                           <div className="flex items-center space-x-2">
                             {player.isLeader && (
-                              <Crown size={14} className="text-yellow-500 flex-shrink-0" />
+                              <Crown
+                                size={14}
+                                className="text-yellow-500 flex-shrink-0"
+                              />
                             )}
                             <span className="text-gray-700 font-medium">
                               {player.name}
                             </span>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            player.isLeader 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {player.total} bâtons
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              player.isLeader
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {player.sticksCount} bâtons
                           </span>
                         </div>
                       ))}
@@ -242,16 +328,15 @@ const HomePage = () => {
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
                       <div className="flex items-center space-x-1">
                         <Calendar size={12} />
-                        <span>
-                          Créé le {formatShortDate(room.createdAt)}
-                        </span>
+                        <span>Créé le {formatShortDate(room.createdAt)}</span>
                       </div>
-                      {room.updatedAt && formatShortDate(room.updatedAt) !== "Date invalide" && (
-                        <div className="flex items-center space-x-1">
-                          <MessageSquare size={12} />
-                          <span>MAJ {formatShortDate(room.updatedAt)}</span>
-                        </div>
-                      )}
+                      {room.updatedAt &&
+                        formatShortDate(room.updatedAt) !== "Date invalide" && (
+                          <div className="flex items-center space-x-1">
+                            <MessageSquare size={12} />
+                            <span>MAJ {formatShortDate(room.updatedAt)}</span>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -259,7 +344,6 @@ const HomePage = () => {
             })
           )}
         </div>
-
       </div>
     </div>
   );
