@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import type { LoginForm, SignUpForm } from "../types/auth.types";
 
@@ -28,7 +28,7 @@ const AuthPage = () => {
     try {
       await signIn(loginForm.email, loginForm.password);
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ const AuthPage = () => {
         signUpForm.displayName
       );
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
     }

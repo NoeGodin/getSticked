@@ -1,5 +1,3 @@
-import type { AuthUser } from "../types/auth.types";
-
 /**
  * Wraps async operations with error handling
  */
@@ -18,17 +16,6 @@ export const withErrorHandler = async <T>(
  * Authorization utilities
  */
 export class AuthUtils {
-  /**
-   * Ensures user can only modify their own data
-   */
-  static ensureOwnership(userId: string, performedBy: AuthUser): void {
-    if (performedBy.uid !== userId) {
-      throw new Error(
-        "Accès interdit : vous ne pouvez modifier que vos propres données"
-      );
-    }
-  }
-
   /**
    * Checks if user is room owner
    */

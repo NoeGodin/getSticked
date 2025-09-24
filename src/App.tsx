@@ -34,6 +34,7 @@ const AppContent = () => {
       }
     };
 
+    // noinspection JSIgnoredPromiseFromCall
     handleInvitation();
   }, [user]);
 

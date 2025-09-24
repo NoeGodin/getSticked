@@ -16,6 +16,7 @@ import type {
 import type { AuthUser } from "../types/auth.types";
 import { RoomService } from "./room.service";
 import { UserService } from "./user.service";
+import { UserRoomItemsService } from "./userRoomItems.service";
 import { COLLECTIONS, createTimestamp } from "../utils/firestore";
 import { AuthUtils, ValidationUtils, withErrorHandler } from "../utils/service";
 
@@ -170,6 +171,8 @@ export class InvitationService {
       if (!isOwner && !isAlreadyJoined) {
         // Add user to room
         await UserService.addRoomToUser(user.uid, invitation.roomId);
+        // Ensure user has userRoomItems entry
+        await UserRoomItemsService.joinRoom(user.uid, invitation.roomId);
       }
 
       // Increment usage count
