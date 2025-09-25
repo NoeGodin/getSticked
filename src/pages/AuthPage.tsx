@@ -189,6 +189,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ embedded = false }) => {
                 >
                   Email
                 </label>
+                <p className="text-xs text-gray-500 mb-1">
+                  Tu peux mettre n'importe quel email, je vérifie pas encore 😉
+                </p>
                 <input
                   id="signup-email"
                   type="email"
@@ -381,6 +384,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ embedded = false }) => {
                 >
                   Email
                 </label>
+                <p className="text-xs text-gray-500 mb-1">
+                  Tu peux mettre n'importe quel email, je vérifie pas encore 😉
+                </p>
                 <input
                   id="signup-email"
                   type="email"

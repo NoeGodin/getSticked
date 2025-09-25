@@ -18,11 +18,13 @@ import { useAuth } from "../contexts/AuthContext";
 import type { Room } from "../types/room.types";
 import { formatShortDate } from "../utils/helpers.ts";
 import {
+  addDoc,
   collection,
   documentId,
   getDocs,
   orderBy,
   query,
+  serverTimestamp,
   where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -54,7 +56,7 @@ const HomePage = () => {
     >
   >({});
   const [loading, setLoading] = useState<boolean>(true);
-  type TabType = "rooms" | "profile";
+  type TabType = "rooms" | "profile" | "developer-message";
   const [activeTab, setActiveTab] = useState<TabType>("rooms");
 
   // Profile states
@@ -70,6 +72,10 @@ const HomePage = () => {
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Developer message states
+  const [developerMessage, setDeveloperMessage] = useState("");
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
 
   const navigate = useNavigate();
 
@@ -156,6 +162,34 @@ const HomePage = () => {
     } finally {
       setIsLoadingProfile(false);
       setIsUploadingImage(false);
+    }
+  };
+
+  const handleDeveloperMessageSubmit = async () => {
+    if (!user || !developerMessage.trim()) return;
+
+    setIsSubmittingMessage(true);
+
+    try {
+      const messageData = {
+        userId: user.uid,
+        userDisplayName: user.displayName,
+        userEmail: user.email,
+        message: developerMessage.trim(),
+        timestamp: serverTimestamp(),
+        isRead: false,
+      };
+
+      await addDoc(collection(db, "developerMessages"), messageData);
+
+      setDeveloperMessage("");
+      setActiveTab("rooms");
+      alert("Message envoyé avec succès ! Merci pour ton retour :)");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("Erreur lors de l'envoi du message. Réessaie plus tard.");
+    } finally {
+      setIsSubmittingMessage(false);
     }
   };
 
@@ -406,13 +440,20 @@ const HomePage = () => {
 
         {/* Action Buttons - Only show for rooms tab */}
         {activeTab === "rooms" && (
-          <div className="flex justify-center mb-8 px-4">
+          <div className="flex flex-col items-center space-y-4 mb-8 px-4">
             <button
               onClick={() => navigate("/create")}
               className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg transition-colors duration-200"
             >
               <Plus size={20} />
               <span>Créer un salon</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("developer-message" as TabType)}
+              className="flex items-center justify-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors duration-200"
+            >
+              <MessageSquare size={18} />
+              <span>Message au développeur</span>
             </button>
           </div>
         )}
@@ -561,6 +602,80 @@ const HomePage = () => {
                 );
               })
             )}
+          </div>
+        ) : activeTab === "developer-message" ? (
+          /* Developer Message Content */
+          <div className="flex justify-center">
+            <div className="w-full max-w-2xl bg-white rounded-lg shadow-sm p-6">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  Message au développeur
+                </h2>
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg text-left">
+                  <div className="text-blue-700">
+                    <p className="font-medium mb-2">Salut !</p>
+                    <p className="mb-2">
+                      Étudiant à l'UTC et kiffeur du pic le jeudi. J'ai consacré
+                      ces dernières semaines à travailler sur cette application
+                      pendant mon temps libre
+                    </p>
+                    <p className="mb-2">
+                      N'importe quel retour (bugs, erreurs, idées de features)
+                      m'aiderait énormément pour améliorer l'application.
+                    </p>
+                    <p className="font-medium">
+                      Merci d'avance pour ton aide !
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="developer-message"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Ton message *
+                  </label>
+                  <textarea
+                    id="developer-message"
+                    value={developerMessage}
+                    onChange={(e) => setDeveloperMessage(e.target.value)}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="Décris ton bug, ton idée, ou partage ton ressenti sur l'app... :)"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setActiveTab("rooms")}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleDeveloperMessageSubmit}
+                    disabled={!developerMessage.trim() || isSubmittingMessage}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors duration-200 ${
+                      !developerMessage.trim() || isSubmittingMessage
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-yellow-500 hover:bg-yellow-600"
+                    } text-white`}
+                  >
+                    {isSubmittingMessage ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <MessageSquare size={16} />
+                    )}
+                    {isSubmittingMessage
+                      ? "Préparation..."
+                      : "Envoyer le message"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           /* Profile Content */
