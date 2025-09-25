@@ -256,57 +256,59 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     };
 
     return (
-      <div className="flex flex-col items-center space-y-6">
-        {aggregated.map((agg) => {
-          const mountainRows = createMountainRows(
-            agg.count,
-            agg.option.emoji,
-            agg.option.color
-          );
+      <div className="w-full h-full">
+        <div className="flex flex-col items-center space-y-4 p-2">
+          {aggregated.map((agg) => {
+            const mountainRows = createMountainRows(
+              agg.count,
+              agg.option.emoji,
+              agg.option.color
+            );
 
-          return (
-            <div key={agg.optionId} className="flex flex-col items-center">
-              <div className="text-xs sm:text-sm text-gray-600 mb-2">
-                {agg.option.name} ({agg.option.points} pts)
-              </div>
+            return (
+              <div key={agg.optionId} className="flex flex-col items-center w-full">
+                <div className="text-xs sm:text-sm text-gray-600 mb-2 text-center">
+                  {agg.option.name} ({agg.option.points} pts)
+                </div>
 
-              {/* Mountain formation */}
-              <div className="flex flex-col items-center space-y-1">
-                {mountainRows.map((row, rowIdx) => (
-                  <div
-                    key={rowIdx}
-                    className="flex justify-center items-end space-x-1"
-                    style={{
-                      // Add slight offset to create more natural mountain look
-                      transform: `translateX(${(rowIdx % 2) * 2 - 1}px)`,
-                    }}
-                  >
-                    {Array.from({ length: row.items }, (_, i) => (
-                      <div
-                        key={`${rowIdx}-${i}`}
-                        className="text-xl sm:text-2xl lg:text-3xl transform hover:scale-110 transition-transform cursor-pointer"
-                        style={{
-                          color: row.color,
-                          // Add slight random rotation for more natural look
-                          transform: `rotate(${Math.sin(rowIdx + i) * 10}deg) scale(${0.9 + Math.sin(rowIdx + i) * 0.1})`,
-                          // Slightly randomize positioning
-                          marginLeft: `${Math.sin(rowIdx + i) * 2}px`,
-                          zIndex: mountainRows.length - rowIdx, // Ensure top items are above bottom ones
-                        }}
-                      >
-                        {row.emoji}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+                {/* Mountain formation - more compact for scrolling */}
+                <div className="flex flex-col items-center space-y-1 max-w-full">
+                  {mountainRows.map((row, rowIdx) => (
+                    <div
+                      key={rowIdx}
+                      className="flex justify-center items-end space-x-0.5 flex-wrap"
+                      style={{
+                        // Add slight offset to create more natural mountain look
+                        transform: `translateX(${(rowIdx % 2) * 2 - 1}px)`,
+                      }}
+                    >
+                      {Array.from({ length: row.items }, (_, i) => (
+                        <div
+                          key={`${rowIdx}-${i}`}
+                          className="text-lg sm:text-xl lg:text-2xl transform hover:scale-110 transition-transform cursor-pointer flex-shrink-0"
+                          style={{
+                            color: row.color,
+                            // Add slight random rotation for more natural look
+                            transform: `rotate(${Math.sin(rowIdx + i) * 8}deg) scale(${0.9 + Math.sin(rowIdx + i) * 0.1})`,
+                            // Slightly randomize positioning
+                            marginLeft: `${Math.sin(rowIdx + i) * 1}px`,
+                            zIndex: mountainRows.length - rowIdx, // Ensure top items are above bottom ones
+                          }}
+                        >
+                          {row.emoji}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
 
-              <div className="text-xs text-gray-500 mt-2">
-                {agg.count} × {agg.option.points} = {agg.totalPoints} pts
+                <div className="text-xs text-gray-500 mt-2 text-center">
+                  {agg.count} × {agg.option.points} = {agg.totalPoints} pts
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -359,8 +361,8 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             className="bg-white border-2 border-gray-200 rounded-lg
                 p-3 sm:p-6 lg:p-8 mb-4 sm:mb-6 lg:mb-8
                 h-32 sm:h-40 lg:h-56
-                flex items-center justify-center
-                overflow-y-auto"
+                flex flex-col items-center justify-start
+                overflow-y-auto overflow-x-hidden"
           >
             {renderItemMountain(currentAggregated)}
           </div>
@@ -483,16 +485,20 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                   ×
                 </button>
               </div>
-              <div className="flex items-center gap-2 mt-3">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={showRemovedInHistory}
-                    onChange={(e) => setShowRemovedInHistory(e.target.checked)}
-                    className="rounded"
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-sm text-gray-600">Montrer les suppressions</span>
+                <button
+                  onClick={() => setShowRemovedInHistory(!showRemovedInHistory)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    showRemovedInHistory ? 'bg-blue-600' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      showRemovedInHistory ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                   />
-                  Montrer les suppressions
-                </label>
+                </button>
               </div>
             </div>
             <div className="p-4 overflow-y-auto max-h-[60vh]">
