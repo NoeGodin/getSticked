@@ -107,7 +107,7 @@ export class UserRoomItemsService {
 
       const newItem: UserItem = {
         ...item,
-        id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       };
 
       const updatedItems = [...userRoomItems.items, newItem];

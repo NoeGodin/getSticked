@@ -17,7 +17,7 @@ const AppContent = () => {
 
       if (inviteToken && user) {
         try {
-          const result = await InvitationService.useInvitation(
+          const result = await InvitationService.consumeInvitation(
             inviteToken,
             user
           );

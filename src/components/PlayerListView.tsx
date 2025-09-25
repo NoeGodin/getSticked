@@ -19,12 +19,6 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
   itemType,
   currentUserId,
 }) => {
-  // Debug logs
-  console.log("🔍 PlayerListView Debug:", {
-    currentUserId,
-    players: players.map((p) => ({ id: p.id, name: p.name })),
-    playersCount: players.length,
-  });
   // Calculate totals and sort by points
   const playersWithTotals = players
     .map((player) => {

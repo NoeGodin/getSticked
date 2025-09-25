@@ -88,7 +88,7 @@ export class ItemTypeService {
         ...newType,
         options: newType.options.map((option) => ({
           ...option,
-          id: `opt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `opt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         })),
       };
 

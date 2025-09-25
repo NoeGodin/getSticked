@@ -141,7 +141,6 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
         {/* History Widget - Show only current player's history when room has > 4 players */}
         <RoomHistoryWidget
           room={room}
-          virtualPlayers={virtualPlayers}
           currentPlayerId={
             (virtualPlayers || []).length > 4 ? player.id : undefined
           }

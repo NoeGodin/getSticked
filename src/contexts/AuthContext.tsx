@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { AuthService } from "../services/auth.service";
-import type { AuthUser, AuthContextType } from "../types/auth.types";
+import type { AuthContextType, AuthUser } from "../types/auth.types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
+    return AuthService.onAuthStateChanged(async (firebaseUser) => {
       setLoading(true);
 
       if (firebaseUser) {
@@ -58,8 +58,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setLoading(false);
     });
-
-    return unsubscribe;
   }, []);
 
   const signIn = async (email: string, password: string) => {

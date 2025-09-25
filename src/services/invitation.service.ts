@@ -111,7 +111,7 @@ export class InvitationService {
   /**
    * Validate and use an invitation token
    */
-  static async useInvitation(
+  static async consumeInvitation(
     token: string,
     user: AuthUser
   ): Promise<{ roomId: string; roomName: string }> {
