@@ -1,24 +1,13 @@
-import type { Stick } from "./stick.types.ts";
-
-export interface UserRoomSticks {
-  id?: string; // Firebase document ID
-  userId: string; // ID of authenticated user
-  roomId: string; // ID of room
-  sticks: Stick[];
-  createdAt: string; // ISO string when joining room
-  updatedAt?: string; // ISO string
-}
 
 export interface ActionHistory {
   id: string;
   type:
-    | "stick_added"
-    | "stick_removed"
+    | "item_added"
+    | "item_removed"
     | "user_joined"
     | "user_left"
     | "room_updated";
-  userId?: string; // ID of the concerned user (replaces playerId)
-  stickType?: string;
+  userId?: string; // ID of the concerned user
   performedBy: {
     uid: string;
     displayName: string;
@@ -39,7 +28,8 @@ export interface Room {
   createdAt: string; // ISO string
   updatedAt?: string; // ISO string
   history: ActionHistory[];
-  memberIds: string[]; // List of user IDs who have sticks in this room
+  memberIds: string[]; // List of user IDs who have items in this room
+  itemTypeId: string; // ID du type d'item utilisé (obligatoire maintenant)
 }
 
 // Interface for creating a room (simplified)
@@ -51,7 +41,7 @@ export interface CreateRoomForm {
 export interface Player {
   id: string;
   name: string;
-  sticks: Stick[];
+  items: import("./item-type.types").UserItem[];
   photoURL?: string;
   bio?: string;
 }

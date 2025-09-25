@@ -14,7 +14,7 @@ import {
 import { db } from "../config/firebase";
 import type { ActionHistory, CreateRoomForm, Room } from "../types/room.types";
 import type { AuthUser } from "../types/auth.types";
-import { UserRoomSticksService } from "./userRoomSticks.service";
+import { UserRoomItemsService } from "./userRoomItems.service";
 
 const ROOMS_COLLECTION = "rooms";
 
@@ -52,7 +52,7 @@ export class RoomService {
   }
 
   static async createRoom(
-    roomData: CreateRoomForm,
+    roomData: CreateRoomForm & { itemTypeId: string },
     owner: AuthUser
   ): Promise<string> {
     try {
@@ -66,6 +66,7 @@ export class RoomService {
         },
         createdAt: new Date().toISOString(),
         memberIds: [],
+        itemTypeId: roomData.itemTypeId,
         history: [
           {
             id: `action_${Date.now()}`,
@@ -82,8 +83,9 @@ export class RoomService {
 
       const docRef = await addDoc(collection(db, ROOMS_COLLECTION), newRoom);
 
-      // Owner join automatically
-      await UserRoomSticksService.joinRoom(owner.uid, docRef.id, owner);
+      // Owner join automatically using the unified item system
+      const { UserRoomItemsService } = await import("./userRoomItems.service");
+      await UserRoomItemsService.joinRoom(owner.uid, docRef.id);
       await this.addUserToRoom(docRef.id, owner.uid, owner);
 
       return docRef.id;
@@ -167,7 +169,7 @@ export class RoomService {
         updatedAt: serverTimestamp(),
       });
 
-      await UserRoomSticksService.leaveRoom(userId, roomId);
+      await UserRoomItemsService.leaveRoom(userId, roomId);
 
       await this.addActionToHistory(roomId, {
         type: "user_left",
@@ -242,6 +244,25 @@ export class RoomService {
     }
   }
 
+  static async updateRoom(
+    roomId: string,
+    updates: Partial<Omit<Room, "id" | "createdAt" | "owner">>
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, ROOMS_COLLECTION, roomId);
+
+      // Add timestamp to updates
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(docRef, updateData);
+    } catch (error) {
+      throw new Error(`Erreur lors de la mise à jour de la room: ${error}`);
+    }
+  }
+
   static async deleteRoom(
     roomId: string,
     performedBy: AuthUser
@@ -257,7 +278,7 @@ export class RoomService {
         throw new Error("Only room owner can delete the room");
       }
 
-      await UserRoomSticksService.deleteAllRoomSticks(roomId);
+      await UserRoomItemsService.deleteAllRoomItems(roomId);
 
       // Delete room
       await deleteDoc(doc(db, ROOMS_COLLECTION, roomId));

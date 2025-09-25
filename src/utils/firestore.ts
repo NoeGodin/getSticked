@@ -44,6 +44,7 @@ export const createTimestamp = (): string => {
 export const COLLECTIONS = {
   USERS: "users",
   ROOMS: "rooms",
-  USER_ROOM_STICKS: "userRoomSticks",
+  USER_ROOM_ITEMS: "userRoomItems",
+  ITEM_TYPES: "itemTypes",
   ROOM_INVITATIONS: "room_invitations",
 } as const;

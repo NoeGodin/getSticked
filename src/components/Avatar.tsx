@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import React from "react";
 import { User } from "lucide-react";
 
