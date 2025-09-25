@@ -1,10 +1,6 @@
 # 🎯 GetSticked
 
-Une application web moderne pour se comparer dans n'importe quelle compétition.
-
-## Description
-
-GetSticked permet aux utilisateurs de créer des salons privés où ils peuvent inviter des amis à participer à un système compétitif
+Une application web collaborative de comptage d'items. Idéale pour suivre des scores, des consommations, des activités sportives ou tout autre système de points entre amis.
 
 ### Configuration
 

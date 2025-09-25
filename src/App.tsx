@@ -57,15 +57,26 @@ const AppContent = () => {
   if (!user) {
     if (inviteToken) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center bg-white p-8 rounded-lg shadow-lg max-w-md mx-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Rejoindre un salon
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Vous devez vous connecter pour rejoindre ce salon.
-            </p>
-            <AuthPage />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-md w-full space-y-8">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                Rejoindre un salon
+              </h2>
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 rounded-r-lg">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <span className="text-blue-400 text-xl">ℹ️</span>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-blue-700 font-medium">
+                      Vous devez vous connecter pour rejoindre ce salon.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <AuthPage embedded={true} />
           </div>
         </div>
       );
