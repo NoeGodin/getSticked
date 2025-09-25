@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { Check, Settings, Share2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import StickCounter from "./StickCounter.tsx";
+import ItemCounter from "./ItemCounter.tsx";
 import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
 import type { Player, Room } from "../types/room.types";
+import type { ItemType, UserItem } from "../types/item-type.types";
 import { RoomService } from "../services/room.service.ts";
 import { UserService } from "../services/user.service.ts";
 import { InvitationService } from "../services/invitation.service.ts";
+import { ItemTypeService } from "../services/item-type.service.ts";
 
 const StickRoom = () => {
   const { user } = useAuth();
@@ -20,6 +22,7 @@ const StickRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const [room, setRoom] = useState<Room | null>(null);
   const [virtualPlayers, setVirtualPlayers] = useState<Player[]>([]);
+  const [itemType, setItemType] = useState<ItemType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
@@ -36,14 +39,15 @@ const StickRoom = () => {
     }
 
     try {
-      const { UserRoomSticksService } = await import(
-        "../services/userRoomSticks.service"
-      );
-
       const playersPromises = roomData.memberIds.map(async (memberId) => {
         try {
           const memberData = await UserService.getUserById(memberId);
-          const memberSticks = await UserRoomSticksService.getUserRoomSticks(
+
+          // Always use the new item system
+          const { UserRoomItemsService } = await import(
+            "../services/userRoomItems.service"
+          );
+          const memberItems = await UserRoomItemsService.getUserRoomItems(
             memberId,
             roomData.id!
           );
@@ -51,7 +55,8 @@ const StickRoom = () => {
           return {
             id: memberId,
             name: memberData?.displayName || "Utilisateur inconnu",
-            sticks: memberSticks?.sticks || [],
+            sticks: [], // Keep for compatibility but always empty
+            items: memberItems?.items || ([] as UserItem[]),
             photoURL: memberData?.photoURL,
             bio: memberData?.bio,
           };
@@ -61,6 +66,7 @@ const StickRoom = () => {
             id: memberId,
             name: "Utilisateur inconnu",
             sticks: [],
+            items: [] as UserItem[],
             photoURL: undefined,
             bio: undefined,
           };
@@ -95,8 +101,21 @@ const StickRoom = () => {
 
         setRoom(roomData);
 
-        // Charger les joueurs virtuels basés sur les membres
-        await loadVirtualPlayers(roomData);
+        // Load item type (mandatory now)
+        if (roomData.itemTypeId) {
+          try {
+            const type = await ItemTypeService.getTypeById(roomData.itemTypeId);
+            setItemType(type);
+          } catch (error) {
+            console.error("Error loading item type:", error);
+            setError("Type d'item introuvable");
+            return;
+          }
+        } else {
+          console.error("Room has no itemTypeId");
+          setError("Type d'item manquant");
+          return;
+        }
 
         // Check if user accessed via invitation link and auto-join if not already joined
         const userData = await UserService.getUserById(user.uid);
@@ -112,6 +131,34 @@ const StickRoom = () => {
             console.error("Error auto-joining room:", error);
           }
         }
+
+        // Ensure user is in memberIds and has userRoomItems entry
+        let updatedRoomData = roomData;
+        if (!roomData.memberIds.includes(user.uid)) {
+          // Add user to room memberIds
+          await RoomService.updateRoom(roomId, {
+            memberIds: [...roomData.memberIds, user.uid],
+          });
+          // Update local room data
+          updatedRoomData = {
+            ...roomData,
+            memberIds: [...roomData.memberIds, user.uid],
+          };
+          setRoom(updatedRoomData);
+        }
+
+        // Ensure user has an entry in userRoomItems
+        try {
+          const { UserRoomItemsService } = await import(
+            "../services/userRoomItems.service"
+          );
+          await UserRoomItemsService.joinRoom(user.uid, roomId);
+        } catch (error) {
+          console.warn("Error ensuring user room items entry:", error);
+        }
+
+        // Charger les joueurs virtuels basés sur les membres (use updated room data)
+        await loadVirtualPlayers(updatedRoomData);
       } catch (err) {
         console.error("Error loading room:", err);
         setError("Error loading room data");
@@ -150,6 +197,27 @@ const StickRoom = () => {
       }
     } catch (error) {
       console.error("Error updating sticks:", error);
+    }
+  };
+
+  const handleItemsUpdate = async (playerId: string) => {
+    if (!room?.id || !user) return;
+
+    if (playerId !== user.uid) {
+      console.error(
+        "Tentative de modification des items d'un autre utilisateur"
+      );
+      return;
+    }
+
+    try {
+      const updatedRoom = await RoomService.getRoomByIdLight(room.id);
+      if (updatedRoom) {
+        setRoom(updatedRoom);
+        await loadVirtualPlayers(updatedRoom);
+      }
+    } catch (error) {
+      console.error("Error updating items:", error);
     }
   };
 
@@ -193,14 +261,14 @@ const StickRoom = () => {
     if (!room) return;
 
     try {
-      // Créer un "joueur" virtuel basé sur les données du membre
+      // Créer un "joueur" virtuel basé sur les données du membre avec le nouveau système
       const { UserService } = await import("../services/user.service");
-      const { UserRoomSticksService } = await import(
-        "../services/userRoomSticks.service"
+      const { UserRoomItemsService } = await import(
+        "../services/userRoomItems.service"
       );
 
       const memberData = await UserService.getUserById(playerId);
-      const memberSticks = await UserRoomSticksService.getUserRoomSticks(
+      const memberItems = await UserRoomItemsService.getUserRoomItems(
         playerId,
         room.id!
       );
@@ -208,7 +276,9 @@ const StickRoom = () => {
       const virtualPlayer: Player = {
         id: playerId,
         name: memberData?.displayName || "Utilisateur inconnu",
-        sticks: memberSticks?.sticks || [],
+        items: memberItems?.items || [],
+        photoURL: memberData?.photoURL,
+        bio: memberData?.bio,
       };
 
       setSelectedPlayer(virtualPlayer);
@@ -370,6 +440,9 @@ const StickRoom = () => {
             <PlayerListView
               players={virtualPlayers}
               onPlayerClick={handlePlayerSelect}
+              room={room}
+              itemType={itemType || undefined}
+              currentUserId={user?.uid}
             />
           </div>
         ) : (
@@ -386,23 +459,26 @@ const StickRoom = () => {
                       : "grid-cols-1 md:grid-cols-2"
               }`}
             >
-              {virtualPlayers.map((player) => (
-                <StickCounter
-                  key={player.id}
-                  playerName={player.name}
-                  sticks={player.sticks}
-                  roomId={room.id}
-                  player={player.id}
-                  onSticksUpdate={() => handleSticksUpdate(player.id)}
-                  playerPhotoURL={player.photoURL}
-                />
-              ))}
+              {virtualPlayers.map((player) => {
+                return itemType ? (
+                  <ItemCounter
+                    key={player.id}
+                    playerName={player.name}
+                    items={player.items || []}
+                    roomId={room.id!}
+                    player={player.id}
+                    onItemsUpdate={() => handleItemsUpdate(player.id)}
+                    playerPhotoURL={player.photoURL}
+                    itemType={itemType!}
+                  />
+                ) : null;
+              })}
             </div>
           </div>
         )}
 
         {/* History Widget */}
-        <RoomHistoryWidget room={room} virtualPlayers={virtualPlayers} />
+        <RoomHistoryWidget room={room} />
       </div>
     </div>
   );

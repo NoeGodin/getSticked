@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import StickCounter from "./StickCounter.tsx";
+import ItemCounter from "./ItemCounter.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import type { Player, Room } from "../types/room.types";
-import type { Stick } from "../types/stick.types";
+import type { ItemType, UserItem } from "../types/item-type.types";
+import { ItemTypeService } from "../services/item-type.service";
+import { UserRoomItemsService } from "../services/userRoomItems.service";
 
 interface SinglePlayerViewProps {
   player: Player;
@@ -11,7 +13,7 @@ interface SinglePlayerViewProps {
   room: Room;
   virtualPlayers?: Player[]; // Joueurs virtuels pour le nouveau modèle
   onBack: () => void;
-  onSticksUpdate: (playerId: string, newSticks: Stick[]) => void;
+  onSticksUpdate: (playerId: string) => void; // Simplifié car plus besoin de passer newSticks
 }
 
 const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
@@ -22,6 +24,80 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
   onBack,
   onSticksUpdate,
 }) => {
+  const [itemType, setItemType] = useState<ItemType | null>(null);
+  const [playerItems, setPlayerItems] = useState<UserItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Charger item type and player type
+  useEffect(() => {
+    const loadData = async () => {
+      if (!room.itemTypeId || !roomId) return;
+
+      try {
+        const type = await ItemTypeService.getTypeById(room.itemTypeId);
+        setItemType(type);
+
+        const userRoomItems = await UserRoomItemsService.getUserRoomItems(
+          player.id,
+          roomId
+        );
+        setPlayerItems(userRoomItems?.items || []);
+      } catch (error) {
+        console.error("Error loading single player data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // noinspection JSIgnoredPromiseFromCall
+    loadData();
+  }, [room.itemTypeId, roomId, player.id]);
+
+  const handleItemsUpdate = async () => {
+    // reload item after update
+    if (roomId) {
+      try {
+        const userRoomItems = await UserRoomItemsService.getUserRoomItems(
+          player.id,
+          roomId
+        );
+        setPlayerItems(userRoomItems?.items || []);
+
+        // reload parent
+        onSticksUpdate(player.id);
+      } catch (error) {
+        console.error("Error refreshing items:", error);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!itemType) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Type d'item introuvable</p>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+          >
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -35,7 +111,10 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
             <span>Retour</span>
           </button>
         </div>
-        <h1 className="text-lg font-semibold text-gray-800">{player.name}</h1>
+        <div className="text-center">
+          <h1 className="text-lg font-semibold text-gray-800">{player.name}</h1>
+          <span className="text-sm text-gray-500">{itemType.name}</span>
+        </div>
         <div /> {/* Spacer for centering */}
       </div>
 
@@ -44,16 +123,15 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
         {/* Single Player Counter */}
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-md">
-            <StickCounter
+            <ItemCounter
               playerName={player.name}
-              sticks={player.sticks}
-              roomId={roomId}
+              items={playerItems}
+              roomId={roomId || ""}
               player={player.id}
-              onSticksUpdate={(newSticks) =>
-                onSticksUpdate(player.id, newSticks)
-              }
+              onItemsUpdate={handleItemsUpdate}
               hideHistoryIcon={(virtualPlayers || []).length > 4}
               playerPhotoURL={player.photoURL}
+              itemType={itemType}
             />
           </div>
         </div>

@@ -1,65 +1,134 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Clock,
-  User,
-  MessageSquare,
-  Plus,
-  Minus,
   ChevronDown,
+  Clock,
+  MessageSquare,
+  Minus,
+  Plus,
+  User,
 } from "lucide-react";
 import type { Room } from "../types/room.types";
-import type { Stick } from "../types/stick.types";
+import type { ItemType, UserItem } from "../types/item-type.types";
+import { UserRoomItemsService } from "../services/userRoomItems.service";
+import { ItemTypeService } from "../services/item-type.service";
+import { UserService } from "../services/user.service";
 
 interface RoomHistoryWidgetProps {
   room: Room;
-  virtualPlayers?: ({ id: string; name: string; sticksCount: number } | { id: string; name: string; sticks: Stick[] })[]; // Virtual players for individual model
   currentPlayerId?: string; // When specified, only show history for this player
 }
 
-interface HistoryEntry extends Stick {
+interface HistoryEntry {
+  id: string;
+  optionId: string;
+  optionName: string;
+  optionEmoji: string;
+  optionPoints: number;
+  count: number;
+  comment?: string;
+  createdAt: string;
+  isRemoved?: boolean;
   playerName: string;
   playerId: string;
 }
 
 const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
   room,
-  virtualPlayers,
   currentPlayerId,
 }) => {
   const [visibleCount, setVisibleCount] = useState(5);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Combine all sticks from all players with player information
-  const allHistoryEntries = useMemo((): HistoryEntry[] => {
-    const allEntries: HistoryEntry[] = [];
+  // Load history data
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!room.id) return;
 
-    // Use virtual players if available, fallback to room.players for compatibility
-    const players = virtualPlayers || (room as { players?: { id: string; name: string; sticks: Stick[] }[] }).players || [];
+      try {
+        setLoading(true);
 
-    // If currentPlayerId is specified, only show history for that player
-    const playersToInclude = currentPlayerId
-      ? players.filter((player) => player.id === currentPlayerId)
-      : players;
+        // Get room's item type
+        let roomItemType: ItemType | null = null;
+        if (room.itemTypeId) {
+          const availableTypes = await ItemTypeService.getAvailableTypes();
+          roomItemType =
+            availableTypes.find((type) => type.id === room.itemTypeId) || null;
+        }
 
-    playersToInclude.forEach((player) => {
-      const sticks = 'sticks' in player ? player.sticks : [];
-      sticks.forEach((stick: Stick) => {
-        allEntries.push({
-          ...stick,
-          playerName: player.name,
-          playerId: player.id,
-        });
-      });
-    });
+        if (!roomItemType) {
+          setHistoryEntries([]);
+          return;
+        }
 
-    // Sort by creation date, most recent first
-    return allEntries.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [virtualPlayers, room, currentPlayerId]);
+        // Get all user items for this room
+        const allUserItems = await UserRoomItemsService.getAllRoomItems(
+          room.id
+        );
 
-  const visibleEntries = allHistoryEntries.slice(0, visibleCount);
-  const hasMoreEntries = allHistoryEntries.length > visibleCount;
+        // Build history entries
+        const entries: HistoryEntry[] = [];
+
+        for (const userRoomItems of allUserItems) {
+          // Skip if currentPlayerId is specified and this isn't the right player
+          if (currentPlayerId && userRoomItems.userId !== currentPlayerId) {
+            continue;
+          }
+
+          // Get user name
+          let playerName = "Utilisateur inconnu";
+          try {
+            const userData = await UserService.getUserById(
+              userRoomItems.userId
+            );
+            playerName = userData?.displayName || "Utilisateur inconnu";
+          } catch (error) {
+            console.warn(`Error loading user ${userRoomItems.userId}:`, error);
+          }
+
+          // Add each item as a history entry
+          userRoomItems.items.forEach((item: UserItem) => {
+            const option = roomItemType.options.find(
+              (opt) => opt.id === item.optionId
+            );
+            if (!option) return;
+
+            entries.push({
+              id: item.id,
+              optionId: item.optionId,
+              optionName: option.name,
+              optionEmoji: option.emoji,
+              optionPoints: option.points,
+              count: item.count || 1,
+              comment: item.comment,
+              createdAt: item.createdAt,
+              isRemoved: item.isRemoved,
+              playerName,
+              playerId: userRoomItems.userId,
+            });
+          });
+        }
+
+        // Sort by creation date, most recent first
+        entries.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        setHistoryEntries(entries);
+      } catch (error) {
+        console.error("Error loading history:", error);
+        setHistoryEntries([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistory();
+  }, [room.id, room.itemTypeId, currentPlayerId]);
+
+  const visibleEntries = historyEntries.slice(0, visibleCount);
+  const hasMoreEntries = historyEntries.length > visibleCount;
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -82,25 +151,51 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
     }
   };
 
-  const getActionIcon = (stick: HistoryEntry) => {
-    if (stick.isRemoved) {
+  const getActionIcon = (entry: HistoryEntry) => {
+    if (entry.isRemoved) {
       return <Minus size={12} className="text-red-500 flex-shrink-0" />;
     }
     return <Plus size={12} className="text-green-500 flex-shrink-0" />;
   };
 
-  const getActionText = (stick: HistoryEntry): string => {
-    if (stick.isRemoved) {
-      return `a retiré ${Math.abs(stick.count)} bâton${Math.abs(stick.count) !== 1 ? "s" : ""}`;
+  const getActionText = (entry: HistoryEntry): string => {
+    const itemText = `${entry.count} ${entry.optionEmoji} ${entry.optionName.toLowerCase()}${entry.count !== 1 ? "s" : ""}`;
+    const pointsText = `(${entry.count * entry.optionPoints} point${entry.count * entry.optionPoints !== 1 ? "s" : ""})`;
+
+    if (entry.isRemoved) {
+      return `a retiré ${itemText} ${pointsText}`;
     }
-    return `a ajouté ${stick.count} bâton${stick.count !== 1 ? "s" : ""}`;
+    return `a ajouté ${itemText} ${pointsText}`;
   };
 
   const loadMoreEntries = () => {
     setVisibleCount((prev) => prev + 20);
   };
 
-  if (allHistoryEntries.length === 0) {
+  if (loading) {
+    return (
+      <div className="bg-white border-t border-gray-200 p-4">
+        <div className="flex items-center space-x-2 text-gray-500 mb-3">
+          <Clock size={16} />
+          <h3 className="font-medium text-sm">Historique</h3>
+        </div>
+        <div className="animate-pulse space-y-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="flex items-center space-x-3 p-2">
+              <div className="w-3 h-3 bg-gray-200 rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+              <div className="w-8 h-3 bg-gray-200 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (historyEntries.length === 0) {
     return (
       <div className="bg-white border-t border-gray-200 p-4">
         <div className="flex items-center space-x-2 text-gray-500 mb-3">
@@ -121,8 +216,8 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
           <Clock size={16} />
           <h3 className="font-medium text-sm">Historique</h3>
           <span className="text-xs text-gray-500">
-            ({allHistoryEntries.length} action
-            {allHistoryEntries.length !== 1 ? "s" : ""})
+            ({historyEntries.length} action
+            {historyEntries.length !== 1 ? "s" : ""})
           </span>
         </div>
 
