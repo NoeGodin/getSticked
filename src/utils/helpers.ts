@@ -10,22 +10,29 @@ export const formatShortDate = (isoString: string) => {
     year: "numeric",
   });
 };
+// Calculate total points from user items
+export const getTotalPoints = (
+  items: import("../types/item-type.types").UserItem[],
+  itemType: import("../types/item-type.types").ItemType
+) => {
+  return items.reduce((total, item) => {
+    if (item.isRemoved) return total;
 
-export const formatDate = (isoString: string) => {
-  const date = new Date(isoString);
-  return date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+    const option = itemType.options.find((opt) => opt.id === item.optionId);
+    if (!option) return total;
+
+    const count = item.count || 1;
+    return total + count * option.points;
+  }, 0);
 };
 
-export const getTotalSticks = (
-  sticks: { count: number; isRemoved?: boolean }[]
+// Calculate total items count
+export const getTotalItems = (
+  items: import("../types/item-type.types").UserItem[]
 ) => {
-  return sticks.reduce((total, stick) => {
-    return stick.isRemoved ? total - stick.count : total + stick.count;
+  return items.reduce((total, item) => {
+    if (item.isRemoved) return total;
+    const count = item.count || 1;
+    return total + count;
   }, 0);
 };
