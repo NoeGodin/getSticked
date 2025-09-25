@@ -30,6 +30,7 @@ const StickRoom = () => {
   const [viewMode, setViewMode] = useState<
     "multi" | "single" | "list" | "settings"
   >("multi");
+  const [initialViewSet, setInitialViewSet] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
   // Load virtual players based on room members
@@ -171,14 +172,17 @@ const StickRoom = () => {
     loadRoomData();
   }, [roomId, user, navigate]);
 
-  // Determine view mode based on number of members
+  // Determine view mode based on number of members (only initially)
   useEffect(() => {
-    if (virtualPlayers.length > 4) {
-      setViewMode("list");
-    } else {
-      setViewMode("multi");
+    if (!initialViewSet && virtualPlayers.length > 0) {
+      if (virtualPlayers.length > 4) {
+        setViewMode("list");
+      } else {
+        setViewMode("multi");
+      }
+      setInitialViewSet(true);
     }
-  }, [virtualPlayers]);
+  }, [virtualPlayers, initialViewSet]);
 
   const handleSticksUpdate = async (playerId: string) => {
     if (!room?.id || !user) return;
@@ -296,7 +300,10 @@ const StickRoom = () => {
 
   const handleBackToList = () => {
     setSelectedPlayer(null);
-    setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
+    // Keep the current view mode instead of auto-determining
+    if (viewMode === "single") {
+      setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
+    }
   };
 
   const handleShowSettings = () => {
@@ -304,6 +311,7 @@ const StickRoom = () => {
   };
 
   const handleBackFromSettings = () => {
+    // Return to the appropriate view based on current players count
     setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
   };
 

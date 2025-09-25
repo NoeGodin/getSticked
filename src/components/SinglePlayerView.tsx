@@ -67,6 +67,11 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
 
         // reload parent
         onSticksUpdate(player.id);
+
+        // Trigger history update event for RoomHistoryWidget
+        window.dispatchEvent(new CustomEvent('roomHistoryUpdated', { 
+          detail: { roomId, timestamp: Date.now() } 
+        }));
       } catch (error) {
         console.error("Error refreshing items:", error);
       }
