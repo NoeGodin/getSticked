@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Check, History, Minus, Plus } from "lucide-react";
+import { History, Minus, Plus } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
@@ -56,7 +56,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
       }
 
       const count = item.count || 1;
-      
+
       if (item.isRemoved) {
         // Subtract removed items from the total
         aggregated[item.optionId].count -= count;
@@ -69,7 +69,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     });
 
     // Filter out items with zero or negative count
-    return Object.values(aggregated).filter(agg => agg.count > 0);
+    return Object.values(aggregated).filter((agg) => agg.count > 0);
   };
 
   const [currentAggregated, setCurrentAggregated] = useState<AggregatedItem[]>(
@@ -112,42 +112,19 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
 
   const openHistoryModal = async () => {
     try {
-      const { UserRoomItemsService } = await import("../services/userRoomItems.service");
-      const userRoomItems = await UserRoomItemsService.getUserRoomItems(player, roomId);
+      const { UserRoomItemsService } = await import(
+        "../services/userRoomItems.service"
+      );
+      const userRoomItems = await UserRoomItemsService.getUserRoomItems(
+        player,
+        roomId
+      );
       setPlayerHistory(userRoomItems?.items || []);
       setIsHistoryModalOpen(true);
     } catch (error) {
       console.error("Error loading player history:", error);
     }
   };
-
-  const handleAddItem = (option: ItemOption, count: number = 1) => {
-    setTempAggregated((prev) => {
-      const existing = prev.find((agg) => agg.optionId === option.id);
-      if (existing) {
-        return prev.map((agg) =>
-          agg.optionId === option.id
-            ? {
-                ...agg,
-                count: agg.count + count,
-                totalPoints: (agg.count + count) * option.points,
-              }
-            : agg
-        );
-      } else {
-        return [
-          ...prev,
-          {
-            optionId: option.id,
-            option,
-            count,
-            totalPoints: count * option.points,
-          },
-        ];
-      }
-    });
-  };
-
   const handleModalConfirm = async (count: number, comment: string) => {
     if (!optionToAdd || !roomId || !user) return;
 
@@ -160,7 +137,9 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
         ...(comment.trim() && { comment: comment.trim() }),
       };
 
-      const { UserRoomItemsService } = await import("../services/userRoomItems.service");
+      const { UserRoomItemsService } = await import(
+        "../services/userRoomItems.service"
+      );
       await UserRoomItemsService.addItem(user.uid, roomId, newItem);
 
       await RoomService.addActionToHistory(roomId, {
@@ -190,7 +169,9 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
         ...(comment.trim() && { comment: comment.trim() }),
       };
 
-      const { UserRoomItemsService } = await import("../services/userRoomItems.service");
+      const { UserRoomItemsService } = await import(
+        "../services/userRoomItems.service"
+      );
       await UserRoomItemsService.addItem(user.uid, roomId, removalItem);
 
       await RoomService.addActionToHistory(roomId, {
@@ -206,9 +187,6 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
       console.error("Error removing item:", error);
     }
   };
-
-
-
 
   // Render items in a "mountain" style with emojis spread in a more natural mountain formation
   const renderItemMountain = (aggregated: AggregatedItem[]) => {
@@ -266,7 +244,10 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             );
 
             return (
-              <div key={agg.optionId} className="flex flex-col items-center w-full">
+              <div
+                key={agg.optionId}
+                className="flex flex-col items-center w-full"
+              >
                 <div className="text-xs sm:text-sm text-gray-600 mb-2 text-center">
                   {agg.option.name} ({agg.option.points} pts)
                 </div>
@@ -465,7 +446,10 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
           }}
           onConfirm={handleRemoveModalConfirm}
           option={optionToRemove}
-          maxCount={currentAggregated.find((agg) => agg.optionId === optionToRemove.id)?.count || 0}
+          maxCount={
+            currentAggregated.find((agg) => agg.optionId === optionToRemove.id)
+              ?.count || 0
+          }
         />
       )}
 
@@ -486,16 +470,18 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                 </button>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-gray-600">Montrer les suppressions</span>
+                <span className="text-sm text-gray-600">
+                  Montrer les suppressions
+                </span>
                 <button
                   onClick={() => setShowRemovedInHistory(!showRemovedInHistory)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    showRemovedInHistory ? 'bg-blue-600' : 'bg-gray-200'
+                    showRemovedInHistory ? "bg-blue-600" : "bg-gray-200"
                   }`}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      showRemovedInHistory ? 'translate-x-6' : 'translate-x-1'
+                      showRemovedInHistory ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -503,23 +489,31 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             </div>
             <div className="p-4 overflow-y-auto max-h-[60vh]">
               {playerHistory.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Aucun historique trouvé</p>
+                <p className="text-gray-500 text-center py-4">
+                  Aucun historique trouvé
+                </p>
               ) : (
                 <div className="space-y-3">
                   {playerHistory
-                    .filter(item => showRemovedInHistory || !item.isRemoved)
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .filter((item) => showRemovedInHistory || !item.isRemoved)
+                    .sort(
+                      (a, b) =>
+                        new Date(b.createdAt).getTime() -
+                        new Date(a.createdAt).getTime()
+                    )
                     .map((item, index) => {
-                      const option = itemType.options.find(opt => opt.id === item.optionId);
+                      const option = itemType.options.find(
+                        (opt) => opt.id === item.optionId
+                      );
                       if (!option) return null;
 
                       return (
                         <div
                           key={index}
                           className={`p-3 rounded-lg border ${
-                            item.isRemoved 
-                              ? 'border-red-200 bg-red-50' 
-                              : 'border-green-200 bg-green-50'
+                            item.isRemoved
+                              ? "border-red-200 bg-red-50"
+                              : "border-green-200 bg-green-50"
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -527,21 +521,29 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                               <span className="text-lg">{option.emoji}</span>
                               <div>
                                 <span className="font-medium">
-                                  {item.isRemoved ? 'Retiré' : 'Ajouté'} {item.count || 1} {option.name}
+                                  {item.isRemoved ? "Retiré" : "Ajouté"}{" "}
+                                  {item.count || 1} {option.name}
                                 </span>
                                 {item.comment && (
-                                  <p className="text-sm text-gray-600 mt-1">"{item.comment}"</p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    "{item.comment}"
+                                  </p>
                                 )}
                               </div>
                             </div>
-                            <span className={`text-sm ${
-                              item.isRemoved ? 'text-red-600' : 'text-green-600'
-                            }`}>
-                              {item.isRemoved ? '-' : '+'}{(item.count || 1) * option.points} pts
+                            <span
+                              className={`text-sm ${
+                                item.isRemoved
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              {item.isRemoved ? "-" : "+"}
+                              {(item.count || 1) * option.points} pts
                             </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-2">
-                            {new Date(item.createdAt).toLocaleString('fr-FR')}
+                            {new Date(item.createdAt).toLocaleString("fr-FR")}
                           </div>
                         </div>
                       );

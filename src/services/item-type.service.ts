@@ -17,7 +17,7 @@ import {
   createTimestamp,
 } from "../utils/firestore";
 import { withErrorHandler } from "../utils/service";
-import type { ItemType } from "../types/item-type.types";
+import type { ItemType, CreateItemTypeForm } from "../types/item-type.types";
 
 export class ItemTypeService {
   /**
@@ -71,11 +71,11 @@ export class ItemTypeService {
   }
 
   static async createCustomType(
-    typeData: Omit<ItemType, "id" | "createdAt" | "updatedAt">,
+    typeData: CreateItemTypeForm,
     userId: string
   ): Promise<string> {
     return withErrorHandler(async () => {
-      const newType: Omit<ItemType, "id"> = {
+      const newType = {
         ...typeData,
         createdBy: userId,
         isGeneric: false,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Check, X, Plus, Minus } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import type { ItemOption } from "../types/item-type.types";
 
 interface RemoveItemModalProps {
@@ -58,7 +58,9 @@ const RemoveItemModal: React.FC<RemoveItemModalProps> = ({
           {/* Available count info */}
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
             <p className="text-sm text-orange-800">
-              Vous avez <span className="font-bold">{maxCount}</span> {option.name.toLowerCase()}{maxCount > 1 ? "s" : ""} disponible{maxCount > 1 ? "s" : ""}
+              Vous avez <span className="font-bold">{maxCount}</span>{" "}
+              {option.name.toLowerCase()}
+              {maxCount > 1 ? "s" : ""} disponible{maxCount > 1 ? "s" : ""}
             </p>
           </div>
 
@@ -74,11 +76,11 @@ const RemoveItemModal: React.FC<RemoveItemModalProps> = ({
               >
                 <Minus size={16} />
               </button>
-              
+
               <span className="text-xl font-bold text-gray-800 min-w-[3rem] text-center">
                 {count}
               </span>
-              
+
               <button
                 onClick={() => setCount(Math.min(maxCount, count + 1))}
                 className="flex items-center justify-center w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
@@ -86,9 +88,10 @@ const RemoveItemModal: React.FC<RemoveItemModalProps> = ({
                 <Plus size={16} />
               </button>
             </div>
-            
+
             <div className="text-sm text-gray-500 mt-2">
-              Retrait: {count} × {option.points} = -{count * option.points} points
+              Retrait: {count} × {option.points} = -{count * option.points}{" "}
+              points
             </div>
           </div>
 
