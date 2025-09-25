@@ -1,3 +1,5 @@
+// noinspection SpellCheckingInspection
+
 import React, { useEffect, useRef, useState } from "react";
 import {
   Calendar,

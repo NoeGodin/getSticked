@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import React, { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import ItemCounter from "./ItemCounter.tsx";

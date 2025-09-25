@@ -1,6 +1,11 @@
+// noinspection SpellCheckingInspection
+
 import React, { useState } from "react";
-import { X, Plus, Trash2, Palette } from "lucide-react";
-import type { CreateItemTypeForm, CreateItemOptionForm } from "../types/item-type.types";
+import { Palette, Plus, Trash2, X } from "lucide-react";
+import type {
+  CreateItemOptionForm,
+  CreateItemTypeForm,
+} from "../types/item-type.types";
 import { ItemTypeService } from "../services/item-type.service";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -19,14 +24,15 @@ export default function CreateItemTypeModal({
   const [formData, setFormData] = useState<CreateItemTypeForm>({
     name: "",
     description: "",
-    options: [
-      { name: "", emoji: "", points: 1 },
-    ],
+    options: [{ name: "", emoji: "", points: 1 }],
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const handleInputChange = (field: keyof CreateItemTypeForm, value: string) => {
+  const handleInputChange = (
+    field: keyof CreateItemTypeForm,
+    value: string
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -64,10 +70,7 @@ export default function CreateItemTypeModal({
   const addOption = () => {
     setFormData((prev) => ({
       ...prev,
-      options: [
-        ...prev.options,
-        { name: "", emoji: "", points: 1 },
-      ],
+      options: [...prev.options, { name: "", emoji: "", points: 1 }],
     }));
   };
 
@@ -100,8 +103,9 @@ export default function CreateItemTypeModal({
       if (!option.emoji.trim()) {
         newErrors[`option_${index}_emoji`] = "L'emoji est requis";
       }
-      if (typeof option.points !== 'number' || option.points < 1) {
-        newErrors[`option_${index}_points`] = "Les points doivent être positifs";
+      if (typeof option.points !== "number" || option.points < 1) {
+        newErrors[`option_${index}_points`] =
+          "Les points doivent être positifs";
       }
     });
 
@@ -116,7 +120,10 @@ export default function CreateItemTypeModal({
     if (validateForm()) {
       try {
         setIsSubmitting(true);
-        const typeId = await ItemTypeService.createCustomType(formData, user.uid);
+        const typeId = await ItemTypeService.createCustomType(
+          formData,
+          user.uid
+        );
         onTypeCreated(typeId);
         handleClose();
       } catch (error) {
@@ -299,7 +306,11 @@ export default function CreateItemTypeModal({
                         min="1"
                         value={option.points}
                         onChange={(e) =>
-                          handleOptionChange(index, "points", parseInt(e.target.value) || 1)
+                          handleOptionChange(
+                            index,
+                            "points",
+                            parseInt(e.target.value) || 1
+                          )
                         }
                         className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
                           errors[`option_${index}_points`]

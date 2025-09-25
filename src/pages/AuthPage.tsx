@@ -1,3 +1,5 @@
+// noinspection SpellCheckingInspection
+
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import type { LoginForm, SignUpForm } from "../types/auth.types";

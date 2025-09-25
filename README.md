@@ -51,6 +51,6 @@ npm run build
 - Consultez l'historique avec le bouton 📜
 
 ### 4. Partager un salon
-- Dans un salon, cliquez "Inviter" 
-- Le lien est automatiquement copié dans votre presse-papiers
+- Dans un salon, cliquez "Inviter".
+- Le lien est automatiquement copié dans votre presse-papiers.
 - Partagez ce lien pour inviter d'autres personnes

@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import {
   addDoc,
   collection,

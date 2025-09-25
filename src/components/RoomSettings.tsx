@@ -1,3 +1,5 @@
+// noinspection SpellCheckingInspection
+
 import React, { useState } from "react";
 import { ArrowLeft, LogOut, Save, Settings, Trash2 } from "lucide-react";
 import type { Room } from "../types/room.types";
