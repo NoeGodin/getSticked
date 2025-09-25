@@ -28,6 +28,8 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
   const { user } = useAuth();
   const [description, setDescription] = useState(room.description || "");
   const [isSaving, setIsSaving] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const isOwner = user && room.owner.uid === user.uid;
 
@@ -65,6 +67,11 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
     }
   };
 
+  const confirmLeaveRoom = () => {
+    setShowLeaveModal(false);
+    handleLeaveRoom();
+  };
+
   const handleDeleteRoom = async () => {
     if (!user || !room.id || !isOwner) return;
 
@@ -74,6 +81,11 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
     } catch (error) {
       console.error("Error deleting room:", error);
     }
+  };
+
+  const confirmDeleteRoom = () => {
+    setShowDeleteModal(false);
+    handleDeleteRoom();
   };
 
   return (
@@ -147,7 +159,7 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
 
             {!isOwner && (
               <button
-                onClick={handleLeaveRoom}
+                onClick={() => setShowLeaveModal(true)}
                 className="w-full flex items-center justify-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
               >
                 <LogOut className="h-4 w-4 mr-2" />
@@ -157,7 +169,7 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
 
             {isOwner && (
               <button
-                onClick={handleDeleteRoom}
+                onClick={() => setShowDeleteModal(true)}
                 className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -167,6 +179,66 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Leave Room Confirmation Modal */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Quitter la room
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Êtes-vous sûr de vouloir quitter "{room.name}" ? Vous ne pourrez plus voir les items des autres membres.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowLeaveModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmLeaveRoom}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-md transition-colors"
+                >
+                  Quitter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Room Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Supprimer la room
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Êtes-vous sûr de vouloir supprimer "{room.name}" ? Cette action est irréversible et supprimera tous les items de tous les membres.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteRoom}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

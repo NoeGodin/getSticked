@@ -30,6 +30,7 @@ const StickRoom = () => {
   const [viewMode, setViewMode] = useState<
     "multi" | "single" | "list" | "settings"
   >("multi");
+  const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
   // Load virtual players based on room members
   const loadVirtualPlayers = async (roomData: Room) => {
@@ -305,8 +306,26 @@ const StickRoom = () => {
     setRoom(updatedRoom);
   };
 
-  const handleLeaveRoom = () => {
-    navigate("/");
+  const handleLeaveRoom = async () => {
+    if (!user || !room?.id) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      await UserService.removeRoomFromUser(user.uid, room.id);
+      await RoomService.removeUserFromRoom(room.id, user.uid, user);
+      navigate("/");
+    } catch (error) {
+      console.error("Error leaving room:", error);
+      // Still navigate home even if there's an error
+      navigate("/");
+    }
+  };
+
+  const confirmLeaveRoom = () => {
+    setShowLeaveModal(false);
+    handleLeaveRoom();
   };
 
   // Single player view when selected
@@ -423,12 +442,22 @@ const StickRoom = () => {
               )}
             </button>
           </div>
-          <button
-            onClick={() => navigate("/")}
-            className="px-2 sm:px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs sm:text-sm transition-colors"
-          >
-            Retour
-          </button>
+<div className="flex gap-1 sm:gap-2">
+            {!isOwner && (
+              <button
+                onClick={() => setShowLeaveModal(true)}
+                className="px-2 sm:px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs sm:text-sm transition-colors"
+              >
+                Quitter
+              </button>
+            )}
+            <button
+              onClick={() => navigate("/")}
+              className="px-2 sm:px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs sm:text-sm transition-colors"
+            >
+              Retour
+            </button>
+          </div>
         </div>
       </div>
 
@@ -480,6 +509,36 @@ const StickRoom = () => {
         {/* History Widget */}
         <RoomHistoryWidget room={room} />
       </div>
+
+      {/* Leave Room Confirmation Modal */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Quitter la room
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Êtes-vous sûr de vouloir quitter "{room.name}" ? Vous ne pourrez plus voir les items des autres membres.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowLeaveModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmLeaveRoom}
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
+                >
+                  Quitter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
