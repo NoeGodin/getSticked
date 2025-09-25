@@ -212,10 +212,15 @@ const StickRoom = () => {
     }
 
     try {
-      const updatedRoom = await RoomService.getRoomByIdLight(room.id);
+      // Force reload of room data with full history for real-time updates
+      const updatedRoom = await RoomService.getRoomById(room.id, true);
       if (updatedRoom) {
         setRoom(updatedRoom);
         await loadVirtualPlayers(updatedRoom);
+        // Force a re-render by updating the key or timestamp
+        window.dispatchEvent(new CustomEvent('roomHistoryUpdated', { 
+          detail: { roomId: room.id, timestamp: Date.now() } 
+        }));
       }
     } catch (error) {
       console.error("Error updating items:", error);
@@ -482,10 +487,10 @@ const StickRoom = () => {
                 virtualPlayers.length === 1
                   ? "grid-cols-1 max-w-md"
                   : virtualPlayers.length === 2
-                    ? "grid-cols-1 md:grid-cols-2"
+                    ? "grid-cols-2"
                     : virtualPlayers.length === 3
-                      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                      : "grid-cols-1 md:grid-cols-2"
+                      ? "grid-cols-2 lg:grid-cols-3"
+                      : "grid-cols-2"
               }`}
             >
               {virtualPlayers.map((player) => {

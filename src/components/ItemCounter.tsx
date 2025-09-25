@@ -3,6 +3,7 @@ import { Check, History, Minus, Plus } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
+import RemoveItemModal from "./RemoveItemModal";
 import type {
   AggregatedItem,
   ItemOption,
@@ -37,13 +38,11 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   // Check if user can modify items
   const canModifyItems = user?.uid === player;
 
-  // Aggregate items by option
+  // Aggregate items by option, taking into account removed items
   const aggregateItems = (itemList: UserItem[]): AggregatedItem[] => {
     const aggregated: { [optionId: string]: AggregatedItem } = {};
 
     itemList.forEach((item) => {
-      if (item.isRemoved) return; // Skip removed items
-
       const option = itemType.options.find((opt) => opt.id === item.optionId);
       if (!option) return;
 
@@ -57,17 +56,23 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
       }
 
       const count = item.count || 1;
-      aggregated[item.optionId].count += count;
-      aggregated[item.optionId].totalPoints += count * option.points;
+      
+      if (item.isRemoved) {
+        // Subtract removed items from the total
+        aggregated[item.optionId].count -= count;
+        aggregated[item.optionId].totalPoints -= count * option.points;
+      } else {
+        // Add normal items to the total
+        aggregated[item.optionId].count += count;
+        aggregated[item.optionId].totalPoints += count * option.points;
+      }
     });
 
-    return Object.values(aggregated);
+    // Filter out items with zero or negative count
+    return Object.values(aggregated).filter(agg => agg.count > 0);
   };
 
   const [currentAggregated, setCurrentAggregated] = useState<AggregatedItem[]>(
-    aggregateItems(items)
-  );
-  const [tempAggregated, setTempAggregated] = useState<AggregatedItem[]>(
     aggregateItems(items)
   );
   const [selectedOption, setSelectedOption] = useState<ItemOption | null>(
@@ -75,12 +80,16 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [optionToAdd, setOptionToAdd] = useState<ItemOption | null>(null);
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [optionToRemove, setOptionToRemove] = useState<ItemOption | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [playerHistory, setPlayerHistory] = useState<UserItem[]>([]);
+  const [showRemovedInHistory, setShowRemovedInHistory] = useState(false);
 
   // Update aggregated data when items prop changes
   useEffect(() => {
     const newAggregated = aggregateItems(items);
     setCurrentAggregated(newAggregated);
-    setTempAggregated(newAggregated);
   }, [items, itemType]);
 
   const openAddModal = (option: ItemOption) => {
@@ -90,6 +99,26 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     }
     setOptionToAdd(option);
     setIsAddModalOpen(true);
+  };
+
+  const openRemoveModal = (option: ItemOption) => {
+    if (!canModifyItems) {
+      console.warn("Tentative de modification non autorisée");
+      return;
+    }
+    setOptionToRemove(option);
+    setIsRemoveModalOpen(true);
+  };
+
+  const openHistoryModal = async () => {
+    try {
+      const { UserRoomItemsService } = await import("../services/userRoomItems.service");
+      const userRoomItems = await UserRoomItemsService.getUserRoomItems(player, roomId);
+      setPlayerHistory(userRoomItems?.items || []);
+      setIsHistoryModalOpen(true);
+    } catch (error) {
+      console.error("Error loading player history:", error);
+    }
   };
 
   const handleAddItem = (option: ItemOption, count: number = 1) => {
@@ -119,193 +148,67 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     });
   };
 
-  const handleModalConfirm = (count: number, comment: string) => {
-    if (!optionToAdd) return;
-
-    // Add to temp aggregated
-    handleAddItem(optionToAdd, count);
-
-    // Store the comment for later use when validating
-    setTempItems((prev) => [
-      ...prev,
-      {
-        optionId: optionToAdd.id,
-        count,
-        ...(comment.trim() && { comment: comment.trim() }),
-        pendingAdd: true,
-      },
-    ]);
-  };
-
-  // Add state for temp items with comments
-  const [tempItems, setTempItems] = useState<
-    Array<{
-      optionId: string;
-      count: number;
-      comment?: string;
-      pendingAdd?: boolean;
-    }>
-  >([]);
-
-  const handleRemoveItem = (option: ItemOption, count: number = 1) => {
-    if (!canModifyItems) {
-      console.warn("Tentative de modification non autorisée");
-      return;
-    }
-
-    setTempAggregated((prev) => {
-      return prev
-        .map((agg) => {
-          if (agg.optionId === option.id) {
-            const newCount = Math.max(0, agg.count - count);
-            return {
-              ...agg,
-              count: newCount,
-              totalPoints: newCount * option.points,
-            };
-          }
-          return agg;
-        })
-        .filter((agg) => agg.count > 0);
-    });
-  };
-
-  const hasChanges = () => {
-    if (currentAggregated.length !== tempAggregated.length) return true;
-
-    return (
-      currentAggregated.some((current) => {
-        const temp = tempAggregated.find(
-          (t) => t.optionId === current.optionId
-        );
-        return !temp || temp.count !== current.count;
-      }) ||
-      tempAggregated.some((temp) => {
-        const current = currentAggregated.find(
-          (c) => c.optionId === temp.optionId
-        );
-        return !current;
-      })
-    );
-  };
-
-  const handleValidate = async () => {
-    if (!hasChanges() || !canModifyItems) return;
+  const handleModalConfirm = async (count: number, comment: string) => {
+    if (!optionToAdd || !roomId || !user) return;
 
     try {
-      // Calculate differences and apply changes
-      const changes: Array<{ option: ItemOption; diff: number }> = [];
+      // Create the item directly
+      const newItem: Omit<UserItem, "id"> = {
+        optionId: optionToAdd.id,
+        createdAt: new Date().toISOString(),
+        count,
+        ...(comment.trim() && { comment: comment.trim() }),
+      };
 
-      // Check for additions and modifications
-      tempAggregated.forEach((temp) => {
-        const current = currentAggregated.find(
-          (c) => c.optionId === temp.optionId
-        );
-        const diff = temp.count - (current ? current.count : 0);
-        if (diff !== 0) {
-          changes.push({ option: temp.option, diff });
-        }
+      const { UserRoomItemsService } = await import("../services/userRoomItems.service");
+      await UserRoomItemsService.addItem(user.uid, roomId, newItem);
+
+      await RoomService.addActionToHistory(roomId, {
+        type: "item_added",
+        userId: user.uid,
+        performedBy: user,
+        details: `Ajouté ${count} ${optionToAdd.name} ${optionToAdd.emoji}${comment.trim() ? ` - ${comment.trim()}` : ""}`,
       });
 
-      // Check for removals
-      currentAggregated.forEach((current) => {
-        const temp = tempAggregated.find(
-          (t) => t.optionId === current.optionId
-        );
-        if (!temp) {
-          changes.push({ option: current.option, diff: -current.count });
-        }
-      });
-
-      // Apply changes
-      const { UserRoomItemsService } = await import(
-        "../services/userRoomItems.service"
-      );
-
-      for (const change of changes) {
-        if (change.diff > 0) {
-          // Find corresponding temp items to get comments
-          const tempItemsForOption = tempItems.filter(
-            (item) => item.optionId === change.option.id && item.pendingAdd
-          );
-
-          if (tempItemsForOption.length > 0) {
-            // Create individual items with their comments
-            for (const tempItem of tempItemsForOption) {
-              const newItem: Omit<UserItem, "id"> = {
-                optionId: change.option.id,
-                createdAt: new Date().toISOString(),
-                count: tempItem.count,
-                ...(tempItem.comment && { comment: tempItem.comment }),
-              };
-
-              if (roomId && user) {
-                await UserRoomItemsService.addItem(user.uid, roomId, newItem);
-
-                await RoomService.addActionToHistory(roomId, {
-                  type: "item_added",
-                  userId: user.uid,
-                  performedBy: user,
-                  details: `Ajouté ${tempItem.count} ${change.option.name} ${change.option.emoji}${tempItem.comment ? ` - ${tempItem.comment}` : ""}`,
-                });
-              }
-            }
-          } else {
-            // Fallback for items without temp data
-            const newItem: Omit<UserItem, "id"> = {
-              optionId: change.option.id,
-              createdAt: new Date().toISOString(),
-              count: change.diff,
-            };
-
-            if (roomId && user) {
-              await UserRoomItemsService.addItem(user.uid, roomId, newItem);
-
-              await RoomService.addActionToHistory(roomId, {
-                type: "item_added",
-                userId: user.uid,
-                performedBy: user,
-                details: `Ajouté ${change.diff} ${change.option.name} ${change.option.emoji}`,
-              });
-            }
-          }
-        } else if (change.diff < 0) {
-          // Remove items
-          const removalItem: Omit<UserItem, "id"> = {
-            optionId: change.option.id,
-            createdAt: new Date().toISOString(),
-            count: Math.abs(change.diff),
-            isRemoved: true,
-          };
-
-          if (roomId && user) {
-            await UserRoomItemsService.addItem(user.uid, roomId, removalItem);
-
-            await RoomService.addActionToHistory(roomId, {
-              type: "item_removed",
-              userId: user.uid,
-              performedBy: user,
-              details: `Retiré ${Math.abs(change.diff)} ${change.option.name} ${change.option.emoji}`,
-            });
-          }
-        }
-      }
-
-      // Update local state and trigger parent
-      setCurrentAggregated([...tempAggregated]);
-
-      // Clear temp items after successful validation
-      setTempItems([]);
-
-      // Trigger reload to update data
+      // Trigger reload
       onItemsUpdate([]);
     } catch (error) {
-      console.error("Error updating items:", error);
-      // Reset temp state on error
-      setTempAggregated([...currentAggregated]);
-      setTempItems([]);
+      console.error("Error adding item:", error);
     }
   };
+
+  const handleRemoveModalConfirm = async (count: number, comment: string) => {
+    if (!optionToRemove || !roomId || !user) return;
+
+    try {
+      // Create the removal item directly
+      const removalItem: Omit<UserItem, "id"> = {
+        optionId: optionToRemove.id,
+        createdAt: new Date().toISOString(),
+        count,
+        isRemoved: true,
+        ...(comment.trim() && { comment: comment.trim() }),
+      };
+
+      const { UserRoomItemsService } = await import("../services/userRoomItems.service");
+      await UserRoomItemsService.addItem(user.uid, roomId, removalItem);
+
+      await RoomService.addActionToHistory(roomId, {
+        type: "item_removed",
+        userId: user.uid,
+        performedBy: user,
+        details: `Retiré ${count} ${optionToRemove.name} ${optionToRemove.emoji}${comment.trim() ? ` - ${comment.trim()}` : ""}`,
+      });
+
+      // Trigger reload
+      onItemsUpdate([]);
+    } catch (error) {
+      console.error("Error removing item:", error);
+    }
+  };
+
+
+
 
   // Render items in a "mountain" style with emojis spread in a more natural mountain formation
   const renderItemMountain = (aggregated: AggregatedItem[]) => {
@@ -442,9 +345,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             </div>
             {!hideHistoryIcon && (
               <button
-                onClick={() => {
-                  /* TODO: Open item history */
-                }}
+                onClick={openHistoryModal}
                 className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-gray-500 hover:bg-gray-600 text-white rounded-full transition-colors duration-200 shadow-lg"
                 title="Voir l'historique"
               >
@@ -457,11 +358,11 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
           <div
             className="bg-white border-2 border-gray-200 rounded-lg
                 p-3 sm:p-6 lg:p-8 mb-4 sm:mb-6 lg:mb-8
-                min-h-32 sm:min-h-40 lg:min-h-56
+                h-32 sm:h-40 lg:h-56
                 flex items-center justify-center
                 overflow-y-auto"
           >
-            {renderItemMountain(tempAggregated)}
+            {renderItemMountain(currentAggregated)}
           </div>
 
           {/* Stats display */}
@@ -469,21 +370,16 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             <div className="flex justify-center space-x-6">
               <div>
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600">
-                  {getTotalItems(tempAggregated)}
+                  {getTotalItems(currentAggregated)}
                 </span>
                 <div className="text-xs sm:text-sm text-gray-500">Items</div>
               </div>
               <div>
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-green-600">
-                  {getTotalPoints(tempAggregated)}
+                  {getTotalPoints(currentAggregated)}
                 </span>
                 <div className="text-xs sm:text-sm text-gray-500">Points</div>
               </div>
-            </div>
-            <div className="text-xs sm:text-sm text-gray-500 mt-2 min-h-[1.25rem]">
-              {hasChanges()
-                ? `Sauvegardé: ${getTotalItems(currentAggregated)} items, ${getTotalPoints(currentAggregated)} pts`
-                : ""}
             </div>
           </div>
 
@@ -519,9 +415,9 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             <div className="flex justify-center space-x-2 sm:space-x-4">
               {/* REMOVE ITEM */}
               <button
-                onClick={() => handleRemoveItem(selectedOption)}
+                onClick={() => openRemoveModal(selectedOption)}
                 disabled={
-                  !tempAggregated.find(
+                  !currentAggregated.find(
                     (agg) => agg.optionId === selectedOption.id
                   )?.count
                 }
@@ -529,16 +425,6 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                 title={`Retirer ${selectedOption.name}`}
               >
                 <Minus size={16} className="sm:w-5 sm:h-5" />
-              </button>
-
-              {/* SAVE CHANGES */}
-              <button
-                onClick={handleValidate}
-                disabled={!hasChanges()}
-                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 shadow-lg"
-                title="Sauvegarder les changements"
-              >
-                <Check size={16} className="sm:w-5 sm:h-5" />
               </button>
 
               {/* ADD ITEM */}
@@ -565,6 +451,100 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
           onConfirm={handleModalConfirm}
           option={optionToAdd}
         />
+      )}
+
+      {/* Remove Item Modal */}
+      {optionToRemove && (
+        <RemoveItemModal
+          isOpen={isRemoveModalOpen}
+          onClose={() => {
+            setIsRemoveModalOpen(false);
+            setOptionToRemove(null);
+          }}
+          onConfirm={handleRemoveModalConfirm}
+          option={optionToRemove}
+          maxCount={currentAggregated.find((agg) => agg.optionId === optionToRemove.id)?.count || 0}
+        />
+      )}
+
+      {/* History Modal */}
+      {isHistoryModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Historique de {playerName}
+                </h3>
+                <button
+                  onClick={() => setIsHistoryModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={showRemovedInHistory}
+                    onChange={(e) => setShowRemovedInHistory(e.target.checked)}
+                    className="rounded"
+                  />
+                  Montrer les suppressions
+                </label>
+              </div>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              {playerHistory.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Aucun historique trouvé</p>
+              ) : (
+                <div className="space-y-3">
+                  {playerHistory
+                    .filter(item => showRemovedInHistory || !item.isRemoved)
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map((item, index) => {
+                      const option = itemType.options.find(opt => opt.id === item.optionId);
+                      if (!option) return null;
+
+                      return (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg border ${
+                            item.isRemoved 
+                              ? 'border-red-200 bg-red-50' 
+                              : 'border-green-200 bg-green-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{option.emoji}</span>
+                              <div>
+                                <span className="font-medium">
+                                  {item.isRemoved ? 'Retiré' : 'Ajouté'} {item.count || 1} {option.name}
+                                </span>
+                                {item.comment && (
+                                  <p className="text-sm text-gray-600 mt-1">"{item.comment}"</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`text-sm ${
+                              item.isRemoved ? 'text-red-600' : 'text-green-600'
+                            }`}>
+                              {item.isRemoved ? '-' : '+'}{(item.count || 1) * option.points} pts
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-2">
+                            {new Date(item.createdAt).toLocaleString('fr-FR')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

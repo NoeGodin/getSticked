@@ -127,6 +127,19 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
     };
 
     loadHistory();
+
+    // Listen for history updates
+    const handleHistoryUpdate = (event: CustomEvent) => {
+      if (event.detail.roomId === room.id) {
+        loadHistory();
+      }
+    };
+
+    window.addEventListener('roomHistoryUpdated', handleHistoryUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('roomHistoryUpdated', handleHistoryUpdate as EventListener);
+    };
   }, [room.id, room.itemTypeId, currentPlayerId]);
 
   const visibleEntries = historyEntries.slice(0, visibleCount);
