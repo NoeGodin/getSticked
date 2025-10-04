@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight, Crown, Users } from "lucide-react";
+import { ChevronRight, Crown, Users, Shield } from "lucide-react";
 import Avatar from "./Avatar";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
@@ -16,6 +16,7 @@ interface PlayerListViewProps {
 const PlayerListView: React.FC<PlayerListViewProps> = ({
   players,
   onPlayerClick,
+  room,
   itemType,
   currentUserId,
 }) => {
@@ -73,6 +74,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
         <div className="divide-y divide-gray-200">
           {playersWithTotals.map((player, index) => {
             const isCurrentUser = currentUserId === player.id;
+            const isOwner = room?.owner?.uid === player.id;
             return (
               <button
                 key={player.id}
@@ -115,6 +117,14 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                       >
                         {player.name}
                       </h3>
+                      {isOwner && (
+                        <div title="Propriétaire de la room">
+                          <Shield 
+                            size={14} 
+                            className="text-amber-500 flex-shrink-0" 
+                          />
+                        </div>
+                      )}
                       {isCurrentUser && (
                         <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
                           Vous

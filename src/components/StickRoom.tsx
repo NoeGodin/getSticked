@@ -512,6 +512,7 @@ const StickRoom = () => {
                     onItemsUpdate={() => handleItemsUpdate(player.id)}
                     playerPhotoURL={player.photoURL}
                     itemType={itemType!}
+                    isOwner={room?.owner?.uid === player.id}
                   />
                 ) : null;
               })}

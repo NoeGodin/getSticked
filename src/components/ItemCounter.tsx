@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { History, Minus, Plus } from "lucide-react";
+import { History, Minus, Plus, Shield } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
@@ -21,6 +21,7 @@ interface ItemCounterProps {
   hideHistoryIcon?: boolean;
   playerPhotoURL?: string;
   itemType: ItemType;
+  isOwner?: boolean;
 }
 
 const ItemCounter: React.FC<ItemCounterProps> = ({
@@ -32,6 +33,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   hideHistoryIcon = false,
   playerPhotoURL,
   itemType,
+  isOwner = false,
 }) => {
   const { user } = useAuth();
 
@@ -315,9 +317,19 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                 size="md"
               />
               <div className="flex flex-col min-w-0">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 truncate">
-                  {playerName}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 truncate">
+                    {playerName}
+                  </h2>
+                  {isOwner && (
+                    <div title="Propriétaire de la room">
+                      <Shield 
+                        size={18} 
+                        className="text-amber-500 flex-shrink-0" 
+                      />
+                    </div>
+                  )}
+                </div>
                 <span className="text-xs text-gray-500">{itemType.name}</span>
                 {canModifyItems && (
                   <span className="text-xs text-blue-600 font-medium">

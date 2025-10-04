@@ -139,6 +139,7 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
               hideHistoryIcon={(virtualPlayers || []).length > 4}
               playerPhotoURL={player.photoURL}
               itemType={itemType}
+              isOwner={room?.owner?.uid === player.id}
             />
           </div>
         </div>
