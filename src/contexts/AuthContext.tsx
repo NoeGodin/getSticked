@@ -42,6 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               createdAt: new Date().toISOString(),
               lastSignIn: new Date().toISOString(),
               joinedRooms: [],
+              ...(firebaseUser.photoURL && { photoURL: firebaseUser.photoURL }),
             };
 
             // Create user document in Firestore

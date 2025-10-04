@@ -298,41 +298,43 @@ const HomePage = () => {
         );
       }
 
+      // OPTIMIZED: Get all member data in a single query instead of N queries
+      const memberIds = room.memberIds || [];
+      const membersMap = await UserService.getUsersByIds(memberIds);
+
       // Calculate stats for each member
-      const memberPlayers = await Promise.all(
-        room.memberIds?.map(async (memberId) => {
-          try {
-            const memberData = await UserService.getUserById(memberId);
-            const userItems = allUserItems.find(
-              (items) => items.userId === memberId
-            );
+      const memberPlayers = memberIds.map((memberId) => {
+        try {
+          const memberData = membersMap.get(memberId);
+          const userItems = allUserItems.find(
+            (items) => items.userId === memberId
+          );
 
-            let totalPoints = 0;
-            let totalItems = 0;
+          let totalPoints = 0;
+          let totalItems = 0;
 
-            if (userItems?.items && roomItemType) {
-              const totals = calculateUserTotals(userItems.items, roomItemType);
-              totalPoints = totals.totalPoints;
-              totalItems = totals.totalItems;
-            }
-
-            return {
-              id: memberId,
-              name: memberData?.displayName || "Utilisateur inconnu",
-              points: totalPoints,
-              items: totalItems,
-            };
-          } catch (error) {
-            console.warn(`Error loading member ${memberId}:`, error);
-            return {
-              id: memberId,
-              name: "Utilisateur inconnu",
-              points: 0,
-              items: 0,
-            };
+          if (userItems?.items && roomItemType) {
+            const totals = calculateUserTotals(userItems.items, roomItemType);
+            totalPoints = totals.totalPoints;
+            totalItems = totals.totalItems;
           }
-        }) || []
-      );
+
+          return {
+            id: memberId,
+            name: memberData?.displayName || "Utilisateur inconnu",
+            points: totalPoints,
+            items: totalItems,
+          };
+        } catch (error) {
+          console.warn(`Error loading member ${memberId}:`, error);
+          return {
+            id: memberId,
+            name: "Utilisateur inconnu",
+            points: 0,
+            items: 0,
+          };
+        }
+      });
 
       // Sort by points descending
       const sortedPlayers = memberPlayers.sort((a, b) => b.points - a.points);

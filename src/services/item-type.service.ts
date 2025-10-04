@@ -17,45 +17,50 @@ import {
   createTimestamp,
 } from "../utils/firestore";
 import { withErrorHandler } from "../utils/service";
+import { MemoryCache } from "../utils/cache";
 import type { ItemType, CreateItemTypeForm } from "../types/item-type.types";
 
 export class ItemTypeService {
   /**
-   * get all types (generic & user custom)
+   * get all types (generic & user custom) with caching
    */
   static async getAvailableTypes(userId?: string): Promise<ItemType[]> {
-    return withErrorHandler(async () => {
-      const typesRef = collection(db, COLLECTIONS.ITEM_TYPES);
+    const cacheKey = `itemTypes_${userId || 'noUser'}`;
+    
+    return MemoryCache.getOrFetch(cacheKey, async () => {
+      return withErrorHandler(async () => {
+        const typesRef = collection(db, COLLECTIONS.ITEM_TYPES);
 
-      const queries = [
-        query(
-          typesRef,
-          where("isGeneric", "==", true),
-          orderBy("createdAt", "asc")
-        ),
-      ];
-
-      if (userId) {
-        queries.push(
+        const queries = [
           query(
             typesRef,
-            where("createdBy", "==", userId),
-            orderBy("createdAt", "desc")
-          )
-        );
-      }
+            where("isGeneric", "==", true),
+            orderBy("createdAt", "asc")
+          ),
+        ];
 
-      const results = await Promise.all(queries.map((q) => getDocs(q)));
+        if (userId) {
+          queries.push(
+            query(
+              typesRef,
+              where("createdBy", "==", userId),
+              orderBy("createdAt", "desc")
+            )
+          );
+        }
 
-      const allTypes: ItemType[] = [];
-      results.forEach((snapshot) => {
-        snapshot.docs.forEach((doc) => {
-          allTypes.push(convertFirestoreDoc<ItemType>(doc));
+        const results = await Promise.all(queries.map((q) => getDocs(q)));
+
+        const allTypes: ItemType[] = [];
+        results.forEach((snapshot) => {
+          snapshot.docs.forEach((doc) => {
+            allTypes.push(convertFirestoreDoc<ItemType>(doc));
+          });
         });
-      });
 
-      return allTypes;
-    }, "Error fetching available types");
+        return allTypes;
+      }, "Error fetching available types");
+    }, 10 * 60 * 1000); // Cache for 10 minutes
   }
 
   static async getTypeById(typeId: string): Promise<ItemType | null> {
@@ -94,6 +99,10 @@ export class ItemTypeService {
 
       const typesRef = collection(db, COLLECTIONS.ITEM_TYPES);
       const docRef = await addDoc(typesRef, typeWithOptionIds);
+
+      // Clear cache after creating new type
+      MemoryCache.clear(`itemTypes_${userId}`);
+      MemoryCache.clear('itemTypes_noUser');
 
       return docRef.id;
     }, "Error creating custom type");

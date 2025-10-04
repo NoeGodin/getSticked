@@ -6,6 +6,7 @@ import {
 } from "firebase/storage";
 import { storage } from "../config/firebase";
 import { withErrorHandler } from "../utils/service";
+import { ImageOptimizer } from "../utils/image-optimization";
 
 export class ImageUploadService {
   static async uploadProfileImage(file: File, userId: string): Promise<string> {
@@ -13,18 +14,27 @@ export class ImageUploadService {
       // Validate file
       this.validateImageFile(file);
 
+      // Optimize image before upload if needed
+      let fileToUpload = file;
+      if (ImageOptimizer.shouldOptimize(file)) {
+        console.log('Optimizing image for upload...');
+        fileToUpload = await ImageOptimizer.optimizeImage(file, 400, 400, 0.85);
+        console.log(`Image optimized: ${file.size} → ${fileToUpload.size} bytes`);
+      }
+
       // Create reference to image
       const timestamp = Date.now();
       const fileName = `profile_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
       const imageRef = ref(storage, `profile-images/${userId}/${fileName}`);
 
       // Upload file
-      const snapshot = await uploadBytes(imageRef, file, {
-        contentType: file.type,
+      const snapshot = await uploadBytes(imageRef, fileToUpload, {
+        contentType: fileToUpload.type,
         customMetadata: {
           uploadedBy: userId,
           originalName: file.name,
           uploadDate: new Date().toISOString(),
+          optimized: ImageOptimizer.shouldOptimize(file) ? 'true' : 'false',
         },
       });
 

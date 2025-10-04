@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { InvitationService } from "./services/invitation.service";
 import StickRoom from "./components/StickRoom.tsx";
 import Loading from "./components/Loading";
+import { FirebaseOptimizer } from "./utils/firebase-optimization";
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -37,6 +38,13 @@ const AppContent = () => {
 
     // noinspection JSIgnoredPromiseFromCall
     handleInvitation();
+  }, [user]);
+
+  // Preload data when user is authenticated
+  useEffect(() => {
+    if (user) {
+      FirebaseOptimizer.preloadData(user.uid);
+    }
   }, [user]);
 
   if (loading) {
