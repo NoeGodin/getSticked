@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import ItemCounter from "./ItemCounter.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
+import Loading from "./Loading";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType, UserItem } from "../types/item-type.types";
 import { ItemTypeService } from "../services/item-type.service";
@@ -79,14 +80,7 @@ const SinglePlayerView: React.FC<SinglePlayerViewProps> = ({
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    );
+    return <Loading variant="page" size="xl" message="Chargement..." />;
   }
 
   if (!itemType) {

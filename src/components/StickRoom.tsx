@@ -9,6 +9,7 @@ import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
+import Loading from "./Loading";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType, UserItem } from "../types/item-type.types";
 import { RoomService } from "../services/room.service.ts";
@@ -369,14 +370,7 @@ const StickRoom = () => {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">Chargement de la room...</p>
-        </div>
-      </div>
-    );
+    return <Loading variant="page" size="xl" message="Chargement de la room..." />;
   }
 
   if (error || !room) {

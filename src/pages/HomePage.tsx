@@ -34,6 +34,8 @@ import { UserRoomItemsService } from "../services/userRoomItems.service";
 import { ItemTypeService } from "../services/item-type.service";
 import { ImageUploadService } from "../services/image-upload.service";
 import Avatar from "../components/Avatar";
+import Loading from "../components/Loading";
+import SkeletonCard from "../components/SkeletonCard";
 import type { AuthUser } from "../types/auth.types";
 
 const HomePage = () => {
@@ -453,20 +455,7 @@ const HomePage = () => {
           /* StickRoom Cards */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-0">
             {loading ? (
-              Array.from({ length: 6 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-lg shadow-lg p-4 sm:p-6 animate-pulse"
-                >
-                  <div className="h-5 sm:h-6 bg-gray-200 rounded mb-3 sm:mb-4"></div>
-                  <div className="h-3 sm:h-4 bg-gray-200 rounded mb-2 sm:mb-3"></div>
-                  <div className="h-3 sm:h-4 bg-gray-200 rounded w-2/3 mb-3 sm:mb-4"></div>
-                  <div className="flex justify-between items-center">
-                    <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/3"></div>
-                    <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/4"></div>
-                  </div>
-                </div>
-              ))
+              <SkeletonCard count={6} />
             ) : rooms.length === 0 ? (
               <div className="col-span-full text-center py-12 px-4">
                 <Users size={48} className="mx-auto text-gray-400 mb-4" />
@@ -655,7 +644,7 @@ const HomePage = () => {
                     } text-white`}
                   >
                     {isSubmittingMessage ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loading size="sm" color="white" />
                     ) : (
                       <MessageSquare size={16} />
                     )}
@@ -691,7 +680,7 @@ const HomePage = () => {
                   />
                   {isUploadingImage ? (
                     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loading size="md" color="white" />
                     </div>
                   ) : (
                     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -774,7 +763,7 @@ const HomePage = () => {
                   } text-white`}
                 >
                   {isLoadingProfile || isUploadingImage ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Loading size="sm" color="white" />
                   ) : (
                     <Save size={16} />
                   )}

@@ -7,6 +7,7 @@ import { RoomService } from "../services/room.service.ts";
 import { ItemTypeService } from "../services/item-type.service.ts";
 import { useAuth } from "../contexts/AuthContext";
 import CreateItemTypeModal from "../components/CreateItemTypeModal";
+import Loading from "../components/Loading";
 
 interface ExtendedCreateRoomForm extends CreateRoomFormData {
   itemTypeId: string;
@@ -229,8 +230,7 @@ export default function CreateRoomForm() {
 
                 {isLoadingTypes ? (
                   <div className="text-center py-8">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <div className="text-gray-500">Chargement des types...</div>
+                    <Loading size="lg" message="Chargement des types..." variant="inline" />
                   </div>
                 ) : (
                   <div className="space-y-6">

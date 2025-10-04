@@ -6,6 +6,7 @@ import CreateRoomForm from "./pages/CreateRoomForm.tsx";
 import { useEffect } from "react";
 import { InvitationService } from "./services/invitation.service";
 import StickRoom from "./components/StickRoom.tsx";
+import Loading from "./components/Loading";
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -39,16 +40,7 @@ const AppContent = () => {
   }, [user]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            Chargement...
-          </h2>
-        </div>
-      </div>
-    );
+    return <Loading variant="page" size="xl" message="Chargement..." />;
   }
 
   const urlParams = new URLSearchParams(window.location.search);
