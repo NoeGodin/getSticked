@@ -53,9 +53,7 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
         // Get room's item type
         let roomItemType: ItemType | null = null;
         if (room.itemTypeId) {
-          const availableTypes = await ItemTypeService.getAvailableTypes();
-          roomItemType =
-            availableTypes.find((type) => type.id === room.itemTypeId) || null;
+          roomItemType = await ItemTypeService.getTypeById(room.itemTypeId);
         }
 
         if (!roomItemType) {
