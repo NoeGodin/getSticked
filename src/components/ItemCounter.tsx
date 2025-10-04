@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { History, Minus, Plus, Shield } from "lucide-react";
+import { getTotalFromAggregated } from "../utils/helpers";
 import { useAuth } from "../contexts/AuthContext";
 import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
@@ -296,13 +297,6 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     );
   };
 
-  const getTotalPoints = (aggregated: AggregatedItem[]) => {
-    return aggregated.reduce((sum, agg) => sum + agg.totalPoints, 0);
-  };
-
-  const getTotalItems = (aggregated: AggregatedItem[]) => {
-    return aggregated.reduce((sum, agg) => sum + agg.count, 0);
-  };
 
   return (
     <>
@@ -365,13 +359,13 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             <div className="flex justify-center space-x-6">
               <div>
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600">
-                  {getTotalItems(currentAggregated)}
+                  {getTotalFromAggregated(currentAggregated).totalItems}
                 </span>
                 <div className="text-xs sm:text-sm text-gray-500">Items</div>
               </div>
               <div>
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-green-600">
-                  {getTotalPoints(currentAggregated)}
+                  {getTotalFromAggregated(currentAggregated).totalPoints}
                 </span>
                 <div className="text-xs sm:text-sm text-gray-500">Points</div>
               </div>

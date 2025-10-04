@@ -3,7 +3,7 @@ import { ChevronRight, Crown, Users, Shield } from "lucide-react";
 import Avatar from "./Avatar";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
-import { getTotalItems, getTotalPoints } from "../utils/helpers";
+import { calculateUserTotals } from "../utils/helpers";
 
 interface PlayerListViewProps {
   players: Player[];
@@ -29,8 +29,9 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
 
       if (itemType && player.items) {
         // Use the unified item type system with points
-        total = getTotalPoints(player.items, itemType);
-        totalItems = getTotalItems(player.items);
+        const totals = calculateUserTotals(player.items, itemType);
+        total = totals.totalPoints;
+        totalItems = totals.totalItems;
         label = total === 1 ? "point" : "points";
       }
 

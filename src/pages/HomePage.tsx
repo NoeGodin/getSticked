@@ -16,7 +16,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import type { Room } from "../types/room.types";
-import { formatShortDate } from "../utils/helpers.ts";
+import { formatShortDate, calculateUserTotals } from "../utils/helpers.ts";
 import {
   addDoc,
   collection,
@@ -309,19 +309,9 @@ const HomePage = () => {
             let totalItems = 0;
 
             if (userItems?.items && roomItemType) {
-              // Calculate points for each item
-              userItems.items.forEach((item) => {
-                if (!item.isRemoved) {
-                  const option = roomItemType.options.find(
-                    (opt) => opt.id === item.optionId
-                  );
-                  if (option) {
-                    const itemCount = item.count || 1;
-                    totalItems += itemCount;
-                    totalPoints += itemCount * option.points;
-                  }
-                }
-              });
+              const totals = calculateUserTotals(userItems.items, roomItemType);
+              totalPoints = totals.totalPoints;
+              totalItems = totals.totalItems;
             }
 
             return {
