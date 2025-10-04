@@ -62,8 +62,8 @@ export class InvitationService {
         "create invitations"
       );
 
-      // Calculate expiration (default 24 hours)
-      const expiresInHours = request.expiresInHours || 24;
+      // Calculate expiration (default 7 days)
+      const expiresInHours = request.expiresInHours || (7 * 24);
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + expiresInHours);
 
