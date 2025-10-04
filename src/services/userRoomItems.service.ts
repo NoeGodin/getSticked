@@ -91,9 +91,19 @@ export class UserRoomItemsService {
   static async addItem(
     userId: string,
     roomId: string,
-    item: Omit<UserItem, "id">
+    item: Omit<UserItem, "id">,
+    performedBy?: string
   ): Promise<void> {
     return withErrorHandler(async () => {
+      // Check if performed by owner when modifying another user's items
+      if (performedBy && performedBy !== userId) {
+        const { RoomService } = await import("./room.service");
+        const room = await RoomService.getRoomByIdLight(roomId);
+        if (!room || room.owner.uid !== performedBy) {
+          throw new Error("Only room owner can modify other users' items");
+        }
+      }
+
       let userRoomItems = await this.getUserRoomItems(userId, roomId);
 
       if (!userRoomItems) {
@@ -117,6 +127,103 @@ export class UserRoomItemsService {
         updatedAt: createTimestamp(),
       });
     }, "Error adding item");
+  }
+
+  /**
+   * Remove items from user's collection in a room (owner can modify any user's items)
+   */
+  static async removeItems(
+    userId: string,
+    roomId: string,
+    removeData: {
+      optionId: string;
+      count: number;
+      comment?: string;
+    },
+    performedBy?: string
+  ): Promise<void> {
+    return withErrorHandler(async () => {
+      // Check if performed by owner when modifying another user's items
+      if (performedBy && performedBy !== userId) {
+        const { RoomService } = await import("./room.service");
+        const room = await RoomService.getRoomByIdLight(roomId);
+        if (!room || room.owner.uid !== performedBy) {
+          throw new Error("Only room owner can modify other users' items");
+        }
+      }
+
+      const userRoomItems = await this.getUserRoomItems(userId, roomId);
+      if (!userRoomItems) {
+        throw new Error("User not found in room");
+      }
+
+      // Create removal items (negative count)
+      const removalItem: UserItem = {
+        id: `removal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        optionId: removeData.optionId,
+        count: -Math.abs(removeData.count), // Ensure negative
+        comment: removeData.comment,
+        isRemoved: true,
+        createdAt: createTimestamp(),
+      };
+
+      const updatedItems = [...userRoomItems.items, removalItem];
+
+      await updateDoc(doc(db, COLLECTIONS.USER_ROOM_ITEMS, userRoomItems.id!), {
+        items: updatedItems,
+        updatedAt: createTimestamp(),
+      });
+    }, "Error removing items");
+  }
+
+  /**
+   * Set user's score to a specific value (owner only)
+   */
+  static async setUserScore(
+    targetUserId: string,
+    roomId: string,
+    optionId: string,
+    newScore: number,
+    performedBy: string
+  ): Promise<void> {
+    return withErrorHandler(async () => {
+      // Verify performer is room owner
+      const { RoomService } = await import("./room.service");
+      const room = await RoomService.getRoomByIdLight(roomId);
+      if (!room || room.owner.uid !== performedBy) {
+        throw new Error("Only room owner can set user scores");
+      }
+
+      const userRoomItems = await this.getUserRoomItems(targetUserId, roomId);
+      if (!userRoomItems) {
+        throw new Error("User not found in room");
+      }
+
+      // Calculate current score for this option
+      const currentScore = userRoomItems.items
+        .filter(item => item.optionId === optionId && !item.isRemoved)
+        .reduce((sum, item) => sum + (item.count || 1), 0);
+
+      const difference = newScore - currentScore;
+
+      if (difference !== 0) {
+        // Create adjustment item
+        const adjustmentItem: UserItem = {
+          id: `adjustment_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          optionId: optionId,
+          count: difference,
+          comment: `Score adjusted by owner to ${newScore}`,
+          createdAt: createTimestamp(),
+        };
+
+        const updatedItems = [...userRoomItems.items, adjustmentItem];
+
+        await updateDoc(doc(db, COLLECTIONS.USER_ROOM_ITEMS, userRoomItems.id!), {
+          items: updatedItems,
+          updatedAt: createTimestamp(),
+        });
+      }
+    }, "Error setting user score");
   }
 
   /**

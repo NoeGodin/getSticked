@@ -479,6 +479,7 @@ const StickRoom = () => {
               room={room}
               itemType={itemType || undefined}
               currentUserId={user?.uid}
+              onPlayersUpdate={() => loadVirtualPlayers(room)}
             />
           </div>
         ) : (
@@ -507,6 +508,8 @@ const StickRoom = () => {
                     playerPhotoURL={player.photoURL}
                     itemType={itemType!}
                     isOwner={room?.owner?.uid === player.id}
+                    room={room}
+                    isCurrentUserOwner={room?.owner?.uid === user?.uid}
                   />
                 ) : null;
               })}

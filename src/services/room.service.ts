@@ -184,6 +184,58 @@ export class RoomService {
     }
   }
 
+  static async kickUserFromRoom(
+    roomId: string,
+    userId: string,
+    performedBy: AuthUser
+  ): Promise<void> {
+    try {
+      const room = await this.getRoomById(roomId);
+      if (!room) {
+        throw new Error("StickRoom not found");
+      }
+
+      // Check if performer is room owner
+      if (room.owner.uid !== performedBy.uid) {
+        throw new Error("Only room owner can kick users");
+      }
+
+      // Can't kick yourself
+      if (userId === performedBy.uid) {
+        throw new Error("Room owner cannot kick themselves");
+      }
+
+      // Check if user is actually in the room
+      if (!room.memberIds.includes(userId)) {
+        throw new Error("User is not in the room");
+      }
+
+      const docRef = doc(db, ROOMS_COLLECTION, roomId);
+      await updateDoc(docRef, {
+        memberIds: arrayRemove(userId),
+        updatedAt: serverTimestamp(),
+      });
+
+      await UserRoomItemsService.leaveRoom(userId, roomId);
+
+      // Get user info for history
+      const { UserService } = await import("./user.service");
+      const kickedUser = await UserService.getUserById(userId);
+      const kickedUserName = kickedUser?.displayName || "Utilisateur inconnu";
+
+      await this.addActionToHistory(roomId, {
+        type: "user_left",
+        userId,
+        performedBy,
+        details: `${kickedUserName} a été exclu de la room par ${performedBy.displayName}`,
+      });
+    } catch (error) {
+      throw new Error(
+        `Erreur lors de l'exclusion de l'utilisateur: ${error}`
+      );
+    }
+  }
+
   static async addActionToHistory(
     roomId: string,
     action: {

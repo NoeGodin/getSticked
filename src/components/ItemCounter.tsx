@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from "react";
-import { History, Minus, Plus, Shield } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { History, Minus, Plus, Shield, Settings } from "lucide-react";
 import { getTotalFromAggregated } from "../utils/helpers";
 import { useAuth } from "../contexts/AuthContext";
 import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
+import OwnerControlsModal from "./OwnerControlsModal";
 import type {
   AggregatedItem,
   ItemOption,
   ItemType,
   UserItem,
 } from "../types/item-type.types";
+import type { Room } from "../types/room.types";
 import { RoomService } from "../services/room.service.ts";
 
 interface ItemCounterProps {
@@ -23,6 +25,8 @@ interface ItemCounterProps {
   playerPhotoURL?: string;
   itemType: ItemType;
   isOwner?: boolean;
+  room?: Room;
+  isCurrentUserOwner?: boolean;
 }
 
 const ItemCounter: React.FC<ItemCounterProps> = ({
@@ -35,14 +39,18 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   playerPhotoURL,
   itemType,
   isOwner = false,
+  room: _room, // eslint-disable-line @typescript-eslint/no-unused-vars
+  isCurrentUserOwner = false,
 }) => {
   const { user } = useAuth();
 
   // Check if user can modify items
   const canModifyItems = user?.uid === player;
+  // Check if current user is room owner and can manage this player
+  const canManagePlayer = isCurrentUserOwner && user?.uid !== player;
 
   // Aggregate items by option, taking into account removed items
-  const aggregateItems = (itemList: UserItem[]): AggregatedItem[] => {
+  const aggregateItems = useCallback((itemList: UserItem[]): AggregatedItem[] => {
     const aggregated: { [optionId: string]: AggregatedItem } = {};
 
     itemList.forEach((item) => {
@@ -73,7 +81,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
 
     // Filter out items with zero or negative count
     return Object.values(aggregated).filter((agg) => agg.count > 0);
-  };
+  }, [itemType.options]);
 
   const [currentAggregated, setCurrentAggregated] = useState<AggregatedItem[]>(
     aggregateItems(items)
@@ -88,12 +96,13 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [playerHistory, setPlayerHistory] = useState<UserItem[]>([]);
   const [showRemovedInHistory, setShowRemovedInHistory] = useState(false);
+  const [isOwnerControlsOpen, setIsOwnerControlsOpen] = useState(false);
 
   // Update aggregated data when items prop changes
   useEffect(() => {
     const newAggregated = aggregateItems(items);
     setCurrentAggregated(newAggregated);
-  }, [items, itemType]);
+  }, [items, itemType, aggregateItems]);
 
   const openAddModal = (option: ItemOption) => {
     if (!canModifyItems) {
@@ -188,6 +197,50 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
       onItemsUpdate([]);
     } catch (error) {
       console.error("Error removing item:", error);
+    }
+  };
+
+  const handleScoreChange = async (optionId: string, newScore: number) => {
+    if (!user) return;
+
+    try {
+      const { UserRoomItemsService } = await import(
+        "../services/userRoomItems.service"
+      );
+      await UserRoomItemsService.setUserScore(
+        player,
+        roomId,
+        optionId,
+        newScore,
+        user.uid
+      );
+
+      const option = itemType.options.find(opt => opt.id === optionId);
+      await RoomService.addActionToHistory(roomId, {
+        type: "item_added",
+        userId: player,
+        performedBy: user,
+        details: `Score modifié par le propriétaire: ${option?.name} = ${newScore}`,
+      });
+
+      // Trigger reload
+      onItemsUpdate([]);
+    } catch (error) {
+      console.error("Error updating score:", error);
+      throw error;
+    }
+  };
+
+  const handleKickPlayer = async () => {
+    if (!user) return;
+
+    try {
+      await RoomService.kickUserFromRoom(roomId, player, user);
+      // Trigger reload
+      onItemsUpdate([]);
+    } catch (error) {
+      console.error("Error kicking player:", error);
+      throw error;
     }
   };
 
@@ -332,15 +385,26 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                 )}
               </div>
             </div>
-            {!hideHistoryIcon && (
-              <button
-                onClick={openHistoryModal}
-                className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-gray-500 hover:bg-gray-600 text-white rounded-full transition-colors duration-200 shadow-lg"
-                title="Voir l'historique"
-              >
-                <History size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManagePlayer && (
+                <button
+                  onClick={() => setIsOwnerControlsOpen(true)}
+                  className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-amber-500 hover:bg-amber-600 text-white rounded-full transition-colors duration-200 shadow-lg"
+                  title="Contrôles propriétaire"
+                >
+                  <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
+                </button>
+              )}
+              {!hideHistoryIcon && (
+                <button
+                  onClick={openHistoryModal}
+                  className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-gray-500 hover:bg-gray-600 text-white rounded-full transition-colors duration-200 shadow-lg"
+                  title="Voir l'historique"
+                >
+                  <History size={16} className="sm:w-[18px] sm:h-[18px]" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Displaying items in mountain style */}
@@ -559,6 +623,24 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Owner Controls Modal */}
+      {isOwnerControlsOpen && canManagePlayer && user && (
+        <OwnerControlsModal
+          isOpen={isOwnerControlsOpen}
+          onClose={() => setIsOwnerControlsOpen(false)}
+          player={{
+            id: player,
+            name: playerName,
+            items: items,
+            photoURL: playerPhotoURL,
+          }}
+          itemType={itemType}
+          onScoreChange={handleScoreChange}
+          onKickPlayer={handleKickPlayer}
+          currentUserId={user.uid}
+        />
       )}
     </>
   );

@@ -1,9 +1,13 @@
-import React from "react";
-import { ChevronRight, Crown, Users, Shield } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronRight, Crown, Users, Shield, Settings } from "lucide-react";
 import Avatar from "./Avatar";
+import OwnerControlsModal from "./OwnerControlsModal";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
 import { calculateUserTotals } from "../utils/helpers";
+import { useAuth } from "../contexts/AuthContext";
+import { RoomService } from "../services/room.service";
+import { UserRoomItemsService } from "../services/userRoomItems.service";
 
 interface PlayerListViewProps {
   players: Player[];
@@ -11,6 +15,7 @@ interface PlayerListViewProps {
   room?: Room;
   itemType?: ItemType;
   currentUserId?: string; // userId to have a special display
+  onPlayersUpdate?: () => void;
 }
 
 const PlayerListView: React.FC<PlayerListViewProps> = ({
@@ -19,7 +24,13 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
   room,
   itemType,
   currentUserId,
+  onPlayersUpdate,
 }) => {
+  const { user } = useAuth();
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [isOwnerControlsOpen, setIsOwnerControlsOpen] = useState(false);
+
+  const isCurrentUserOwner = room?.owner?.uid === user?.uid;
   // Calculate totals and sort by points
   const playersWithTotals = players
     .map((player) => {
@@ -46,6 +57,51 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
 
   const maxScore =
     playersWithTotals.length > 0 ? playersWithTotals[0].total : 0;
+
+  const handleOwnerControls = (e: React.MouseEvent, player: Player) => {
+    e.stopPropagation();
+    setSelectedPlayer(player);
+    setIsOwnerControlsOpen(true);
+  };
+
+  const handleScoreChange = async (optionId: string, newScore: number) => {
+    if (!user || !selectedPlayer || !room?.id) return;
+
+    try {
+      await UserRoomItemsService.setUserScore(
+        selectedPlayer.id,
+        room.id,
+        optionId,
+        newScore,
+        user.uid
+      );
+
+      const option = itemType?.options.find(opt => opt.id === optionId);
+      await RoomService.addActionToHistory(room.id, {
+        type: "item_added",
+        userId: selectedPlayer.id,
+        performedBy: user,
+        details: `Score modifié par le propriétaire: ${option?.name} = ${newScore}`,
+      });
+
+      onPlayersUpdate?.();
+    } catch (error) {
+      console.error("Error updating score:", error);
+      throw error;
+    }
+  };
+
+  const handleKickPlayer = async () => {
+    if (!user || !selectedPlayer || !room?.id) return;
+
+    try {
+      await RoomService.kickUserFromRoom(room.id, selectedPlayer.id, user);
+      onPlayersUpdate?.();
+    } catch (error) {
+      console.error("Error kicking player:", error);
+      throw error;
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto p-4">
@@ -76,17 +132,23 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
           {playersWithTotals.map((player, index) => {
             const isCurrentUser = currentUserId === player.id;
             const isOwner = room?.owner?.uid === player.id;
+            const canManageThisPlayer = isCurrentUserOwner && player.id !== currentUserId;
+            
             return (
-              <button
+              <div
                 key={player.id}
-                onClick={() => onPlayerClick(player.id)}
-                className={`w-full p-4 flex items-center justify-between transition-colors text-left ${
+                className={`p-4 flex items-center justify-between transition-colors ${
                   isCurrentUser
-                    ? "bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500"
-                    : "hover:bg-gray-50"
+                    ? "bg-blue-50 border-l-4 border-blue-500"
+                    : ""
                 }`}
               >
-                <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => onPlayerClick(player.id)}
+                  className={`flex-1 flex items-center space-x-3 text-left hover:bg-gray-50 p-2 rounded transition-colors ${
+                    isCurrentUser ? "hover:bg-blue-100" : ""
+                  }`}
+                >
                   <div className="flex items-center space-x-2">
                     {player.total === maxScore && maxScore > 0 && (
                       <Crown
@@ -137,7 +199,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                       {player.totalItems === 1 ? "item" : "items"}
                     </p>
                   </div>
-                </div>
+                </button>
 
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
@@ -152,13 +214,41 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                     </div>
                     <div className="text-xs text-gray-500">{player.label}</div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400" />
+                  
+                  <div className="flex items-center gap-2">
+                    {canManageThisPlayer && (
+                      <button
+                        onClick={(e) => handleOwnerControls(e, player)}
+                        className="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-full transition-colors"
+                        title="Contrôles propriétaire"
+                      >
+                        <Settings size={14} />
+                      </button>
+                    )}
+                    <ChevronRight size={16} className="text-gray-400" />
+                  </div>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
       </div>
+
+      {/* Owner Controls Modal */}
+      {isOwnerControlsOpen && selectedPlayer && itemType && user && (
+        <OwnerControlsModal
+          isOpen={isOwnerControlsOpen}
+          onClose={() => {
+            setIsOwnerControlsOpen(false);
+            setSelectedPlayer(null);
+          }}
+          player={selectedPlayer}
+          itemType={itemType}
+          onScoreChange={handleScoreChange}
+          onKickPlayer={handleKickPlayer}
+          currentUserId={user.uid}
+        />
+      )}
     </div>
   );
 };
