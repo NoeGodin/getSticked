@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import { ChevronRight, Crown, Users, Shield, Settings } from "lucide-react";
 import Avatar from "./Avatar";
 import OwnerControlsModal from "./OwnerControlsModal";
+import UserProfileModal from "./UserProfileModal";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
+import type { AuthUser } from "../types/auth.types";
 import { calculateUserTotals } from "../utils/helpers";
 import { useAuth } from "../hooks/useAuth";
 import { RoomService } from "../services/room.service";
 import { UserRoomItemsService } from "../services/userRoomItems.service";
+import { UserService } from "../services/user.service";
 
 interface PlayerListViewProps {
   players: Player[];
@@ -29,6 +32,8 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
   const { user } = useAuth();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isOwnerControlsOpen, setIsOwnerControlsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<AuthUser | null>(null);
 
   const isCurrentUserOwner = room?.owner?.uid === user?.uid;
   // Calculate totals and sort by points
@@ -103,6 +108,18 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
     }
   };
 
+  const handleProfileClick = async (playerId: string) => {
+    try {
+      const userData = await UserService.getUserById(playerId);
+      if (userData) {
+        setProfileUser(userData);
+        setIsProfileModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-4">
       <div className="bg-white rounded-lg shadow-lg">
@@ -170,6 +187,8 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                     photoURL={player.photoURL}
                     displayName={player.name}
                     size="md"
+                    clickable={true}
+                    onClick={() => handleProfileClick(player.id)}
                   />
 
                   <div className="min-w-0 flex-1">
@@ -246,6 +265,18 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
           onScoreChange={handleScoreChange}
           onKickPlayer={handleKickPlayer}
           currentUserId={user.uid}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {isProfileModalOpen && profileUser && (
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => {
+            setIsProfileModalOpen(false);
+            setProfileUser(null);
+          }}
+          user={profileUser}
         />
       )}
     </div>

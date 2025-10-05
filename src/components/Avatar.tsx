@@ -8,6 +8,8 @@ interface AvatarProps {
   displayName?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
+  onClick?: () => void;
+  clickable?: boolean;
 }
 
 const Avatar: React.FC<AvatarProps> = ({
@@ -15,6 +17,8 @@ const Avatar: React.FC<AvatarProps> = ({
   displayName,
   size = "md",
   className = "",
+  onClick,
+  clickable = false,
 }) => {
   const sizeClasses = {
     xs: "w-6 h-6",
@@ -43,9 +47,21 @@ const Avatar: React.FC<AvatarProps> = ({
     ).toUpperCase();
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (clickable && onClick) {
+      e.stopPropagation();
+      onClick();
+    }
+  };
+
+  const Component = clickable ? "button" : "div";
+
   return (
-    <div
-      className={`${sizeClasses[size]} rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0 ${className}`}
+    <Component
+      onClick={handleClick}
+      className={`${sizeClasses[size]} rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0 ${className} ${
+        clickable ? "hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 transition-all cursor-pointer" : ""
+      }`}
     >
       {photoURL ? (
         <img
@@ -80,7 +96,7 @@ const Avatar: React.FC<AvatarProps> = ({
           )}
         </div>
       )}
-    </div>
+    </Component>
   );
 };
 

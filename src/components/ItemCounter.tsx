@@ -6,6 +6,7 @@ import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import OwnerControlsModal from "./OwnerControlsModal";
+import UserProfileModal from "./UserProfileModal";
 import type {
   AggregatedItem,
   ItemOption,
@@ -13,7 +14,9 @@ import type {
   UserItem,
 } from "../types/item-type.types";
 import type { Room } from "../types/room.types";
+import type { AuthUser } from "../types/auth.types";
 import { RoomService } from "../services/room.service.ts";
+import { UserService } from "../services/user.service";
 
 interface ItemCounterProps {
   playerName: string;
@@ -100,6 +103,8 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   const [playerHistory, setPlayerHistory] = useState<UserItem[]>([]);
   const [showRemovedInHistory, setShowRemovedInHistory] = useState(false);
   const [isOwnerControlsOpen, setIsOwnerControlsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<AuthUser | null>(null);
 
   // Update aggregated data when items prop changes
   useEffect(() => {
@@ -200,6 +205,18 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
       onItemsUpdate([]);
     } catch (error) {
       console.error("Error removing item:", error);
+    }
+  };
+
+  const handleProfileClick = async () => {
+    try {
+      const userData = await UserService.getUserById(player);
+      if (userData) {
+        setProfileUser(userData);
+        setIsProfileModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
     }
   };
 
@@ -364,6 +381,8 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                 photoURL={playerPhotoURL}
                 displayName={playerName}
                 size="md"
+                clickable={true}
+                onClick={handleProfileClick}
               />
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
@@ -642,6 +661,18 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
           onScoreChange={handleScoreChange}
           onKickPlayer={handleKickPlayer}
           currentUserId={user.uid}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {isProfileModalOpen && profileUser && (
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => {
+            setIsProfileModalOpen(false);
+            setProfileUser(null);
+          }}
+          user={profileUser}
         />
       )}
     </>

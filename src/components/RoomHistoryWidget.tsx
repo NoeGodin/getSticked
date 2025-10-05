@@ -9,8 +9,10 @@ import {
   Plus,
   User,
 } from "lucide-react";
+import UserProfileModal from "./UserProfileModal";
 import type { Room } from "../types/room.types";
 import type { ItemType, UserItem } from "../types/item-type.types";
+import type { AuthUser } from "../types/auth.types";
 import { UserRoomItemsService } from "../services/userRoomItems.service";
 import { ItemTypeService } from "../services/item-type.service";
 import { UserService } from "../services/user.service";
@@ -41,6 +43,8 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
   const [visibleCount, setVisibleCount] = useState(5);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<AuthUser | null>(null);
 
   // Load history data
   useEffect(() => {
@@ -195,6 +199,18 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
     setVisibleCount((prev) => prev + 20);
   };
 
+  const handleProfileClick = async (playerId: string) => {
+    try {
+      const userData = await UserService.getUserById(playerId);
+      if (userData) {
+        setProfileUser(userData);
+        setIsProfileModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white border-t border-gray-200 p-4">
@@ -257,9 +273,12 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-1 text-sm">
                   <User size={10} className="text-gray-400 flex-shrink-0" />
-                  <span className="font-medium text-gray-900 truncate">
+                  <button
+                    onClick={() => handleProfileClick(entry.playerId)}
+                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors"
+                  >
                     {entry.playerName}
-                  </span>
+                  </button>
                   <span className="text-gray-600">{getActionText(entry)}</span>
                 </div>
 
@@ -296,6 +315,18 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
           </div>
         )}
       </div>
+
+      {/* User Profile Modal */}
+      {isProfileModalOpen && profileUser && (
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => {
+            setIsProfileModalOpen(false);
+            setProfileUser(null);
+          }}
+          user={profileUser}
+        />
+      )}
     </div>
   );
 };
