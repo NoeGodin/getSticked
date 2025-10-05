@@ -124,19 +124,29 @@ const RoomHistoryWidget: React.FC<RoomHistoryWidgetProps> = ({
       }
     };
 
-    loadHistory();
+    loadHistory().catch((error) =>
+      console.error("Failed to load history:", error)
+    );
 
     // Listen for history updates
     const handleHistoryUpdate = (event: CustomEvent) => {
       if (event.detail.roomId === room.id) {
-        loadHistory();
+        loadHistory().catch((error) =>
+          console.error("Failed to reload history:", error)
+        );
       }
     };
 
-    window.addEventListener('roomHistoryUpdated', handleHistoryUpdate as EventListener);
-    
+    window.addEventListener(
+      "roomHistoryUpdated",
+      handleHistoryUpdate as EventListener
+    );
+
     return () => {
-      window.removeEventListener('roomHistoryUpdated', handleHistoryUpdate as EventListener);
+      window.removeEventListener(
+        "roomHistoryUpdated",
+        handleHistoryUpdate as EventListener
+      );
     };
   }, [room.id, room.itemTypeId, currentPlayerId]);
 

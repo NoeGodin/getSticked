@@ -17,9 +17,11 @@ export class ImageUploadService {
       // Optimize image before upload if needed
       let fileToUpload = file;
       if (ImageOptimizer.shouldOptimize(file)) {
-        console.log('Optimizing image for upload...');
+        console.log("Optimizing image for upload...");
         fileToUpload = await ImageOptimizer.optimizeImage(file, 400, 400, 0.85);
-        console.log(`Image optimized: ${file.size} → ${fileToUpload.size} bytes`);
+        console.log(
+          `Image optimized: ${file.size} → ${fileToUpload.size} bytes`
+        );
       }
 
       // Create reference to image
@@ -34,7 +36,7 @@ export class ImageUploadService {
           uploadedBy: userId,
           originalName: file.name,
           uploadDate: new Date().toISOString(),
-          optimized: ImageOptimizer.shouldOptimize(file) ? 'true' : 'false',
+          optimized: ImageOptimizer.shouldOptimize(file) ? "true" : "false",
         },
       });
 

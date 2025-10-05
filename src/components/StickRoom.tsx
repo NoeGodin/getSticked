@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Settings, Share2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import ItemCounter from "./ItemCounter.tsx";
 import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
@@ -223,9 +223,11 @@ const StickRoom = () => {
         setRoom(updatedRoom);
         await loadVirtualPlayers(updatedRoom);
         // Force a re-render by updating the key or timestamp
-        window.dispatchEvent(new CustomEvent('roomHistoryUpdated', { 
-          detail: { roomId: room.id, timestamp: Date.now() } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("roomHistoryUpdated", {
+            detail: { roomId: room.id, timestamp: Date.now() },
+          })
+        );
       }
     } catch (error) {
       console.error("Error updating items:", error);
@@ -370,7 +372,9 @@ const StickRoom = () => {
   }
 
   if (loading) {
-    return <Loading variant="page" size="xl" message="Chargement de la room..." />;
+    return (
+      <Loading variant="page" size="xl" message="Chargement de la room..." />
+    );
   }
 
   if (error || !room) {
@@ -449,7 +453,7 @@ const StickRoom = () => {
               )}
             </button>
           </div>
-<div className="flex gap-1 sm:gap-2">
+          <div className="flex gap-1 sm:gap-2">
             {!isOwner && (
               <button
                 onClick={() => setShowLeaveModal(true)}
@@ -530,7 +534,8 @@ const StickRoom = () => {
                 Quitter la room
               </h3>
               <p className="text-gray-600 mb-6">
-                Êtes-vous sûr de vouloir quitter "{room.name}" ? Vous ne pourrez plus voir les items des autres membres.
+                Êtes-vous sûr de vouloir quitter "{room.name}" ? Vous ne pourrez
+                plus voir les items des autres membres.
               </p>
               <div className="flex gap-3 justify-end">
                 <button

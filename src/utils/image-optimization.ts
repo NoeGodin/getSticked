@@ -9,14 +9,14 @@ export class ImageOptimizer {
     quality: number = 0.8
   ): Promise<File> {
     return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
       const img = new Image();
 
       img.onload = () => {
         // Calculate new dimensions while maintaining aspect ratio
         let { width, height } = img;
-        
+
         if (width > maxWidth || height > maxHeight) {
           const ratio = Math.min(maxWidth / width, maxHeight / height);
           width *= ratio;
@@ -27,7 +27,7 @@ export class ImageOptimizer {
         canvas.height = height;
 
         if (!ctx) {
-          reject(new Error('Could not get canvas context'));
+          reject(new Error("Could not get canvas context"));
           return;
         }
 
@@ -37,7 +37,7 @@ export class ImageOptimizer {
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-              reject(new Error('Could not compress image'));
+              reject(new Error("Could not compress image"));
               return;
             }
 
@@ -54,7 +54,7 @@ export class ImageOptimizer {
         );
       };
 
-      img.onerror = () => reject(new Error('Could not load image'));
+      img.onerror = () => reject(new Error("Could not load image"));
       img.src = URL.createObjectURL(file);
     });
   }

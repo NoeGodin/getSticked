@@ -11,31 +11,6 @@ export const formatShortDate = (isoString: string) => {
   });
 };
 // Calculate total points from user items
-export const getTotalPoints = (
-  items: import("../types/item-type.types").UserItem[],
-  itemType: import("../types/item-type.types").ItemType
-) => {
-  return items.reduce((total, item) => {
-    if (item.isRemoved) return total;
-
-    const option = itemType.options.find((opt) => opt.id === item.optionId);
-    if (!option) return total;
-
-    const count = item.count || 1;
-    return total + count * option.points;
-  }, 0);
-};
-
-// Calculate total items count
-export const getTotalItems = (
-  items: import("../types/item-type.types").UserItem[]
-) => {
-  return items.reduce((total, item) => {
-    if (item.isRemoved) return total;
-    const count = item.count || 1;
-    return total + count;
-  }, 0);
-};
 
 // Calculate user totals with proper handling of removed items
 export const calculateUserTotals = (

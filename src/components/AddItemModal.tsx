@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { Check, X, Plus, Minus } from "lucide-react";
 import type { ItemOption } from "../types/item-type.types";
+import { useModalForm } from "../hooks/useModalForm";
 
 interface AddItemModalProps {
   isOpen: boolean;
@@ -15,22 +16,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({
   onConfirm,
   option,
 }) => {
-  const [count, setCount] = useState(1);
-  const [comment, setComment] = useState("");
-
-  const handleConfirm = () => {
-    onConfirm(count, comment);
-    // Reset for next time
-    setCount(1);
-    setComment("");
-    onClose();
-  };
-
-  const handleCancel = () => {
-    setCount(1);
-    setComment("");
-    onClose();
-  };
+  const { count, setCount, comment, setComment, handleConfirm, handleCancel } =
+    useModalForm({ onConfirm, onClose });
 
   if (!isOpen) return null;
 
@@ -65,11 +52,11 @@ const AddItemModal: React.FC<AddItemModalProps> = ({
               >
                 <Minus size={16} />
               </button>
-              
+
               <span className="text-xl font-bold text-gray-800 min-w-[3rem] text-center">
                 {count}
               </span>
-              
+
               <button
                 onClick={() => setCount(count + 1)}
                 className="flex items-center justify-center w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors"
@@ -77,7 +64,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({
                 <Plus size={16} />
               </button>
             </div>
-            
+
             <div className="text-sm text-gray-500 mt-2">
               Total: {count} × {option.points} = {count * option.points} points
             </div>

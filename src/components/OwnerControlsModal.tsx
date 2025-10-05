@@ -32,7 +32,7 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
   // Calculate current scores for each option
   const getCurrentScore = (optionId: string): number => {
     return player.items
-      .filter(item => item.optionId === optionId && !item.isRemoved)
+      .filter((item) => item.optionId === optionId && !item.isRemoved)
       .reduce((sum, item) => sum + (item.count || 1), 0);
   };
 
@@ -44,7 +44,7 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
 
   const handleSaveScore = async () => {
     if (!editingOption) return;
-    
+
     setLoading(true);
     try {
       await onScoreChange(editingOption, newScore);
@@ -108,7 +108,10 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
                 const isEditing = editingOption === option.id;
 
                 return (
-                  <div key={option.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div
+                    key={option.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{option.emoji}</span>
                       <div>
@@ -118,7 +121,7 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       {isEditing ? (
                         <div className="flex items-center gap-2">
@@ -126,7 +129,9 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
                             type="number"
                             min="0"
                             value={newScore}
-                            onChange={(e) => setNewScore(parseInt(e.target.value) || 0)}
+                            onChange={(e) =>
+                              setNewScore(parseInt(e.target.value) || 0)
+                            }
                             className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
                             autoFocus
                           />
@@ -172,7 +177,7 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
                 <UserX size={16} />
                 Exclusion du joueur
               </h4>
-              
+
               {!showKickConfirm ? (
                 <button
                   onClick={() => setShowKickConfirm(true)}
@@ -184,8 +189,10 @@ const OwnerControlsModal: React.FC<OwnerControlsModalProps> = ({
                 <div className="space-y-3">
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-sm text-red-800">
-                      <strong>Attention :</strong> Cette action est irréversible. 
-                      {player.name} sera retiré de la room et perdra l'accès à ses données.
+                      <strong>Attention :</strong> Cette action est
+                      irréversible.
+                      {player.name} sera retiré de la room et perdra l'accès à
+                      ses données.
                     </p>
                   </div>
                   <div className="flex gap-2">

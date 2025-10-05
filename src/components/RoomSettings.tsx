@@ -5,7 +5,7 @@ import { ArrowLeft, LogOut, Save, Settings, Trash2 } from "lucide-react";
 import type { Room } from "../types/room.types";
 import { RoomService } from "../services/room.service";
 import { UserService } from "../services/user.service";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 
 interface RoomSettingsProps {
   room: Room;
@@ -69,7 +69,9 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
 
   const confirmLeaveRoom = () => {
     setShowLeaveModal(false);
-    handleLeaveRoom();
+    handleLeaveRoom().catch((error) =>
+      console.error("Failed to leave room:", error)
+    );
   };
 
   const handleDeleteRoom = async () => {
@@ -85,7 +87,9 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
 
   const confirmDeleteRoom = () => {
     setShowDeleteModal(false);
-    handleDeleteRoom();
+    handleDeleteRoom().catch((error) =>
+      console.error("Failed to delete room:", error)
+    );
   };
 
   return (
@@ -189,7 +193,8 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
                 Quitter la room
               </h3>
               <p className="text-gray-600 mb-6">
-                Êtes-vous sûr de vouloir quitter "{room.name}" ? Vous ne pourrez plus voir les items des autres membres.
+                Êtes-vous sûr de vouloir quitter "{room.name}" ? Vous ne pourrez
+                plus voir les items des autres membres.
               </p>
               <div className="flex gap-3 justify-end">
                 <button
@@ -219,7 +224,9 @@ const RoomSettings: React.FC<RoomSettingsProps> = ({
                 Supprimer la room
               </h3>
               <p className="text-gray-600 mb-6">
-                Êtes-vous sûr de vouloir supprimer "{room.name}" ? Cette action est irréversible et supprimera tous les items de tous les membres.
+                Êtes-vous sûr de vouloir supprimer "{room.name}" ? Cette action
+                est irréversible et supprimera tous les items de tous les
+                membres.
               </p>
               <div className="flex gap-3 justify-end">
                 <button

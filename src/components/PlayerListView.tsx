@@ -5,7 +5,7 @@ import OwnerControlsModal from "./OwnerControlsModal";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
 import { calculateUserTotals } from "../utils/helpers";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { RoomService } from "../services/room.service";
 import { UserRoomItemsService } from "../services/userRoomItems.service";
 
@@ -76,7 +76,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
         user.uid
       );
 
-      const option = itemType?.options.find(opt => opt.id === optionId);
+      const option = itemType?.options.find((opt) => opt.id === optionId);
       await RoomService.addActionToHistory(room.id, {
         type: "item_added",
         userId: selectedPlayer.id,
@@ -132,15 +132,14 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
           {playersWithTotals.map((player, index) => {
             const isCurrentUser = currentUserId === player.id;
             const isOwner = room?.owner?.uid === player.id;
-            const canManageThisPlayer = isCurrentUserOwner && player.id !== currentUserId;
-            
+            const canManageThisPlayer =
+              isCurrentUserOwner && player.id !== currentUserId;
+
             return (
               <div
                 key={player.id}
                 className={`p-4 flex items-center justify-between transition-colors ${
-                  isCurrentUser
-                    ? "bg-blue-50 border-l-4 border-blue-500"
-                    : ""
+                  isCurrentUser ? "bg-blue-50 border-l-4 border-blue-500" : ""
                 }`}
               >
                 <button
@@ -182,9 +181,9 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                       </h3>
                       {isOwner && (
                         <div title="Propriétaire de la room">
-                          <Shield 
-                            size={14} 
-                            className="text-amber-500 flex-shrink-0" 
+                          <Shield
+                            size={14}
+                            className="text-amber-500 flex-shrink-0"
                           />
                         </div>
                       )}
@@ -214,7 +213,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                     </div>
                     <div className="text-xs text-gray-500">{player.label}</div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     {canManageThisPlayer && (
                       <button

@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import type { Room } from "../types/room.types";
 import { formatShortDate, calculateUserTotals } from "../utils/helpers.ts";
 import {

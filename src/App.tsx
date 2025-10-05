@@ -1,5 +1,6 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import CreateRoomForm from "./pages/CreateRoomForm.tsx";
@@ -43,7 +44,9 @@ const AppContent = () => {
   // Preload data when user is authenticated
   useEffect(() => {
     if (user) {
-      FirebaseOptimizer.preloadData(user.uid);
+      FirebaseOptimizer.preloadData(user.uid).catch((error) =>
+        console.warn("Failed to preload data:", error)
+      );
     }
   }, [user]);
 
