@@ -43,9 +43,7 @@ const Loading: React.FC<LoadingProps> = ({
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="flex justify-center mb-4">
-            {spinner}
-          </div>
+          <div className="flex justify-center mb-4">{spinner}</div>
           {message && (
             <p className="text-gray-600 text-sm sm:text-base">{message}</p>
           )}
@@ -58,19 +56,13 @@ const Loading: React.FC<LoadingProps> = ({
     return (
       <div className="flex items-center justify-center gap-2">
         {spinner}
-        {message && (
-          <span className="text-gray-600 text-sm">{message}</span>
-        )}
+        {message && <span className="text-gray-600 text-sm">{message}</span>}
       </div>
     );
   }
 
   // Default spinner variant
-  return (
-    <div className="flex justify-center">
-      {spinner}
-    </div>
-  );
+  return <div className="flex justify-center">{spinner}</div>;
 };
 
 export default Loading;

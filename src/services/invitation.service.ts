@@ -63,7 +63,7 @@ export class InvitationService {
       );
 
       // Calculate expiration (default 7 days)
-      const expiresInHours = request.expiresInHours || (7 * 24);
+      const expiresInHours = request.expiresInHours || 7 * 24;
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + expiresInHours);
 

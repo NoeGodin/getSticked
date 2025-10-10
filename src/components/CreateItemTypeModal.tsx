@@ -7,7 +7,7 @@ import type {
   CreateItemTypeForm,
 } from "../types/item-type.types";
 import { ItemTypeService } from "../services/item-type.service";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 
 interface CreateItemTypeModalProps {
   isOpen: boolean;
@@ -103,7 +103,7 @@ export default function CreateItemTypeModal({
       if (!option.emoji.trim()) {
         newErrors[`option_${index}_emoji`] = "L'emoji est requis";
       }
-      if (typeof option.points !== "number" || option.points < 1) {
+      if (option.points < 1) {
         newErrors[`option_${index}_points`] =
           "Les points doivent être positifs";
       }

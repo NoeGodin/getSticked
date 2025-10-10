@@ -5,7 +5,7 @@ import type { CreateRoomForm as CreateRoomFormData } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
 import { RoomService } from "../services/room.service.ts";
 import { ItemTypeService } from "../services/item-type.service.ts";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import CreateItemTypeModal from "../components/CreateItemTypeModal";
 import Loading from "../components/Loading";
 
@@ -47,7 +47,9 @@ export default function CreateRoomForm() {
       }
     };
 
-    loadItemTypes();
+    loadItemTypes().catch((error) =>
+      console.error("Failed to load item types:", error)
+    );
   }, [user]);
 
   const handleInputChange = (
@@ -230,7 +232,11 @@ export default function CreateRoomForm() {
 
                 {isLoadingTypes ? (
                   <div className="text-center py-8">
-                    <Loading size="lg" message="Chargement des types..." variant="inline" />
+                    <Loading
+                      size="lg"
+                      message="Chargement des types..."
+                      variant="inline"
+                    />
                   </div>
                 ) : (
                   <div className="space-y-6">

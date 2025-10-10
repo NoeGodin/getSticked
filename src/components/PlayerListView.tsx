@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import { ChevronRight, Crown, Users, Shield, Settings } from "lucide-react";
 import Avatar from "./Avatar";
 import OwnerControlsModal from "./OwnerControlsModal";
+import UserProfileModal from "./UserProfileModal";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType } from "../types/item-type.types";
+import type { AuthUser } from "../types/auth.types";
 import { calculateUserTotals } from "../utils/helpers";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { RoomService } from "../services/room.service";
 import { UserRoomItemsService } from "../services/userRoomItems.service";
+import { UserService } from "../services/user.service";
 
 interface PlayerListViewProps {
   players: Player[];
@@ -29,6 +32,8 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
   const { user } = useAuth();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isOwnerControlsOpen, setIsOwnerControlsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<AuthUser | null>(null);
 
   const isCurrentUserOwner = room?.owner?.uid === user?.uid;
   // Calculate totals and sort by points
@@ -76,7 +81,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
         user.uid
       );
 
-      const option = itemType?.options.find(opt => opt.id === optionId);
+      const option = itemType?.options.find((opt) => opt.id === optionId);
       await RoomService.addActionToHistory(room.id, {
         type: "item_added",
         userId: selectedPlayer.id,
@@ -100,6 +105,18 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
     } catch (error) {
       console.error("Error kicking player:", error);
       throw error;
+    }
+  };
+
+  const handleProfileClick = async (playerId: string) => {
+    try {
+      const userData = await UserService.getUserById(playerId);
+      if (userData) {
+        setProfileUser(userData);
+        setIsProfileModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
     }
   };
 
@@ -132,15 +149,14 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
           {playersWithTotals.map((player, index) => {
             const isCurrentUser = currentUserId === player.id;
             const isOwner = room?.owner?.uid === player.id;
-            const canManageThisPlayer = isCurrentUserOwner && player.id !== currentUserId;
-            
+            const canManageThisPlayer =
+              isCurrentUserOwner && player.id !== currentUserId;
+
             return (
               <div
                 key={player.id}
                 className={`p-4 flex items-center justify-between transition-colors ${
-                  isCurrentUser
-                    ? "bg-blue-50 border-l-4 border-blue-500"
-                    : ""
+                  isCurrentUser ? "bg-blue-50 border-l-4 border-blue-500" : ""
                 }`}
               >
                 <button
@@ -171,6 +187,8 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                     photoURL={player.photoURL}
                     displayName={player.name}
                     size="md"
+                    clickable={true}
+                    onClick={() => handleProfileClick(player.id)}
                   />
 
                   <div className="min-w-0 flex-1">
@@ -182,9 +200,9 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                       </h3>
                       {isOwner && (
                         <div title="Propriétaire de la room">
-                          <Shield 
-                            size={14} 
-                            className="text-amber-500 flex-shrink-0" 
+                          <Shield
+                            size={14}
+                            className="text-amber-500 flex-shrink-0"
                           />
                         </div>
                       )}
@@ -214,7 +232,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                     </div>
                     <div className="text-xs text-gray-500">{player.label}</div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     {canManageThisPlayer && (
                       <button
@@ -247,6 +265,18 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
           onScoreChange={handleScoreChange}
           onKickPlayer={handleKickPlayer}
           currentUserId={user.uid}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {isProfileModalOpen && profileUser && (
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => {
+            setIsProfileModalOpen(false);
+            setProfileUser(null);
+          }}
+          user={profileUser}
         />
       )}
     </div>

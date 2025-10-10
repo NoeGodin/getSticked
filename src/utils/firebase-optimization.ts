@@ -20,7 +20,9 @@ export class FirebaseOptimizer {
     if (this.initialized) return;
 
     // Enable network persistence by default
-    this.enablePersistence();
+    this.enablePersistence().catch((error) =>
+      console.warn("Could not enable Firebase persistence:", error)
+    );
 
     // Connect to emulators in development
     if (import.meta.env.DEV) {

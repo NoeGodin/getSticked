@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { History, Minus, Plus, Shield, Settings } from "lucide-react";
 import { getTotalFromAggregated } from "../utils/helpers";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import Avatar from "./Avatar";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import OwnerControlsModal from "./OwnerControlsModal";
+import UserProfileModal from "./UserProfileModal";
 import type {
   AggregatedItem,
   ItemOption,
@@ -13,7 +14,9 @@ import type {
   UserItem,
 } from "../types/item-type.types";
 import type { Room } from "../types/room.types";
+import type { AuthUser } from "../types/auth.types";
 import { RoomService } from "../services/room.service.ts";
+import { UserService } from "../services/user.service";
 
 interface ItemCounterProps {
   playerName: string;
@@ -50,38 +53,41 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   const canManagePlayer = isCurrentUserOwner && user?.uid !== player;
 
   // Aggregate items by option, taking into account removed items
-  const aggregateItems = useCallback((itemList: UserItem[]): AggregatedItem[] => {
-    const aggregated: { [optionId: string]: AggregatedItem } = {};
+  const aggregateItems = useCallback(
+    (itemList: UserItem[]): AggregatedItem[] => {
+      const aggregated: { [optionId: string]: AggregatedItem } = {};
 
-    itemList.forEach((item) => {
-      const option = itemType.options.find((opt) => opt.id === item.optionId);
-      if (!option) return;
+      itemList.forEach((item) => {
+        const option = itemType.options.find((opt) => opt.id === item.optionId);
+        if (!option) return;
 
-      if (!aggregated[item.optionId]) {
-        aggregated[item.optionId] = {
-          optionId: item.optionId,
-          option,
-          count: 0,
-          totalPoints: 0,
-        };
-      }
+        if (!aggregated[item.optionId]) {
+          aggregated[item.optionId] = {
+            optionId: item.optionId,
+            option,
+            count: 0,
+            totalPoints: 0,
+          };
+        }
 
-      const count = item.count || 1;
+        const count = item.count || 1;
 
-      if (item.isRemoved) {
-        // Subtract removed items from the total
-        aggregated[item.optionId].count -= count;
-        aggregated[item.optionId].totalPoints -= count * option.points;
-      } else {
-        // Add normal items to the total
-        aggregated[item.optionId].count += count;
-        aggregated[item.optionId].totalPoints += count * option.points;
-      }
-    });
+        if (item.isRemoved) {
+          // Subtract removed items from the total
+          aggregated[item.optionId].count -= count;
+          aggregated[item.optionId].totalPoints -= count * option.points;
+        } else {
+          // Add normal items to the total
+          aggregated[item.optionId].count += count;
+          aggregated[item.optionId].totalPoints += count * option.points;
+        }
+      });
 
-    // Filter out items with zero or negative count
-    return Object.values(aggregated).filter((agg) => agg.count > 0);
-  }, [itemType.options]);
+      // Filter out items with zero or negative count
+      return Object.values(aggregated).filter((agg) => agg.count > 0);
+    },
+    [itemType.options]
+  );
 
   const [currentAggregated, setCurrentAggregated] = useState<AggregatedItem[]>(
     aggregateItems(items)
@@ -97,6 +103,8 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
   const [playerHistory, setPlayerHistory] = useState<UserItem[]>([]);
   const [showRemovedInHistory, setShowRemovedInHistory] = useState(false);
   const [isOwnerControlsOpen, setIsOwnerControlsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<AuthUser | null>(null);
 
   // Update aggregated data when items prop changes
   useEffect(() => {
@@ -200,6 +208,18 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     }
   };
 
+  const handleProfileClick = async () => {
+    try {
+      const userData = await UserService.getUserById(player);
+      if (userData) {
+        setProfileUser(userData);
+        setIsProfileModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+    }
+  };
+
   const handleScoreChange = async (optionId: string, newScore: number) => {
     if (!user) return;
 
@@ -215,7 +235,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
         user.uid
       );
 
-      const option = itemType.options.find(opt => opt.id === optionId);
+      const option = itemType.options.find((opt) => opt.id === optionId);
       await RoomService.addActionToHistory(roomId, {
         type: "item_added",
         userId: player,
@@ -328,7 +348,7 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                             // Add slight random rotation for more natural look
                             transform: `rotate(${Math.sin(rowIdx + i) * 8}deg) scale(${0.9 + Math.sin(rowIdx + i) * 0.1})`,
                             // Slightly randomize positioning
-                            marginLeft: `${Math.sin(rowIdx + i) * 1}px`,
+                            marginLeft: `${Math.sin(rowIdx + i)}px`,
                             zIndex: mountainRows.length - rowIdx, // Ensure top items are above bottom ones
                           }}
                         >
@@ -350,7 +370,6 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
     );
   };
 
-
   return (
     <>
       <div className="flex flex-col items-center p-2 sm:p-4 lg:p-8">
@@ -362,6 +381,8 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                 photoURL={playerPhotoURL}
                 displayName={playerName}
                 size="md"
+                clickable={true}
+                onClick={handleProfileClick}
               />
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
@@ -370,9 +391,9 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
                   </h2>
                   {isOwner && (
                     <div title="Propriétaire de la room">
-                      <Shield 
-                        size={18} 
-                        className="text-amber-500 flex-shrink-0" 
+                      <Shield
+                        size={18}
+                        className="text-amber-500 flex-shrink-0"
                       />
                     </div>
                   )}
@@ -640,6 +661,18 @@ const ItemCounter: React.FC<ItemCounterProps> = ({
           onScoreChange={handleScoreChange}
           onKickPlayer={handleKickPlayer}
           currentUserId={user.uid}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {isProfileModalOpen && profileUser && (
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => {
+            setIsProfileModalOpen(false);
+            setProfileUser(null);
+          }}
+          user={profileUser}
         />
       )}
     </>

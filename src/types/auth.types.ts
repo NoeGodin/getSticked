@@ -12,18 +12,6 @@ export interface AuthUser {
   bio?: string;
 }
 
-export interface LoginForm {
-  email: string;
-  password: string;
-}
-
-export interface SignUpForm {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  displayName: string;
-}
-
 export interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
@@ -36,3 +24,7 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<AuthUser>) => Promise<void>;
 }
+
+export class LoginForm {}
+
+export class SignUpForm {}

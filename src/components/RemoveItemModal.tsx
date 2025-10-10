@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { Minus, Plus, X } from "lucide-react";
 import type { ItemOption } from "../types/item-type.types";
+import { useModalForm } from "../hooks/useModalForm";
 
 interface RemoveItemModalProps {
   isOpen: boolean;
@@ -17,22 +18,8 @@ const RemoveItemModal: React.FC<RemoveItemModalProps> = ({
   option,
   maxCount,
 }) => {
-  const [count, setCount] = useState(1);
-  const [comment, setComment] = useState("");
-
-  const handleConfirm = () => {
-    onConfirm(count, comment);
-    // Reset for next time
-    setCount(1);
-    setComment("");
-    onClose();
-  };
-
-  const handleCancel = () => {
-    setCount(1);
-    setComment("");
-    onClose();
-  };
+  const { count, setCount, comment, setComment, handleConfirm, handleCancel } =
+    useModalForm({ onConfirm, onClose });
 
   if (!isOpen) return null;
 

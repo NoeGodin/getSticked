@@ -230,9 +230,7 @@ export class RoomService {
         details: `${kickedUserName} a été exclu de la room par ${performedBy.displayName}`,
       });
     } catch (error) {
-      throw new Error(
-        `Erreur lors de l'exclusion de l'utilisateur: ${error}`
-      );
+      throw new Error(`Erreur lors de l'exclusion de l'utilisateur: ${error}`);
     }
   }
 

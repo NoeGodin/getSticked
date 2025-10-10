@@ -20,24 +20,30 @@ import { MemoryCache } from "../utils/cache";
 export class UserService {
   static async getUserById(uid: string): Promise<AuthUser | null> {
     const cacheKey = `user_${uid}`;
-    
-    return MemoryCache.getOrFetch(cacheKey, async () => {
-      return withErrorHandler(async () => {
-        const userRef = doc(db, COLLECTIONS.USERS, uid);
-        const userDoc = await getDoc(userRef);
 
-        if (userDoc.exists()) {
-          return userDoc.data() as AuthUser;
-        }
-        return null;
-      }, "Error getting user");
-    }, 5 * 60 * 1000); // Cache for 5 minutes
+    return MemoryCache.getOrFetch(
+      cacheKey,
+      async () => {
+        return withErrorHandler(async () => {
+          const userRef = doc(db, COLLECTIONS.USERS, uid);
+          const userDoc = await getDoc(userRef);
+
+          if (userDoc.exists()) {
+            return userDoc.data() as AuthUser;
+          }
+          return null;
+        }, "Error getting user");
+      },
+      5 * 60 * 1000
+    ); // Cache for 5 minutes
   }
 
   /**
    * Get multiple users by IDs in a single query - NEW OPTIMIZED METHOD
    */
-  static async getUsersByIds(userIds: string[]): Promise<Map<string, AuthUser>> {
+  static async getUsersByIds(
+    userIds: string[]
+  ): Promise<Map<string, AuthUser>> {
     if (userIds.length === 0) {
       return new Map();
     }
@@ -61,12 +67,12 @@ export class UserService {
         const usersRef = collection(db, COLLECTIONS.USERS);
         const q = query(usersRef, where(documentId(), "in", uncachedIds));
         const snapshot = await getDocs(q);
-        
+
         const users = new Map<string, AuthUser>();
         snapshot.docs.forEach((doc) => {
           const user = doc.data() as AuthUser;
           users.set(doc.id, user);
-          
+
           // Cache individual users
           MemoryCache.set(`user_${doc.id}`, user, 5 * 60 * 1000);
         });
@@ -116,14 +122,17 @@ export class UserService {
     }, "Error removing room from user");
   }
 
-  static async updateUserProfile(uid: string, updates: Partial<AuthUser>): Promise<void> {
+  static async updateUserProfile(
+    uid: string,
+    updates: Partial<AuthUser>
+  ): Promise<void> {
     return withErrorHandler(async () => {
       const userRef = doc(db, COLLECTIONS.USERS, uid);
       await updateDoc(userRef, {
         ...updates,
         updatedAt: createTimestamp(),
       });
-      
+
       // Clear user cache after update
       MemoryCache.clear(`user_${uid}`);
     }, "Error updating user profile");
