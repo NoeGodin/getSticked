@@ -292,7 +292,7 @@ const HomePage = () => {
       // Get room's item type to calculate points correctly
       let roomItemType = null;
       if (room.itemTypeId) {
-        const availableTypes = await ItemTypeService.getAvailableTypes();
+        const availableTypes = await ItemTypeService.getAvailableTypes(user?.uid);
         roomItemType = availableTypes.find(
           (type) => type.id === room.itemTypeId
         );
