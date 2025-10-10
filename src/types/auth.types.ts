@@ -25,6 +25,14 @@ export interface AuthContextType {
   updateProfile: (updates: Partial<AuthUser>) => Promise<void>;
 }
 
-export class LoginForm {}
+export interface LoginForm {
+  email: string;
+  password: string;
+}
 
-export class SignUpForm {}
+export interface SignUpForm {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  displayName: string;
+}

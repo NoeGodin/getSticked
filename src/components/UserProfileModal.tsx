@@ -1,6 +1,5 @@
 import React from "react";
 import { Calendar, User as UserIcon, X } from "lucide-react";
-import Avatar from "./Avatar";
 import type { AuthUser } from "../types/auth.types";
 
 interface UserProfileModalProps {
@@ -52,7 +51,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         {user.displayName
                           .trim()
                           .split(" ")
-                          .map(word => word.charAt(0))
+                          .map((word) => word.charAt(0))
                           .slice(0, 2)
                           .join("")
                           .toUpperCase()}
