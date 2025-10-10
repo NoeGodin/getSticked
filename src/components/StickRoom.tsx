@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { Check, Settings, Share2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import ItemCounter from "./ItemCounter.tsx";
-import SinglePlayerView from "./SinglePlayerView.tsx";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
@@ -173,66 +171,14 @@ const StickRoom = () => {
     loadRoomData();
   }, [roomId, user, navigate]);
 
-  // Determine view mode based on number of members (only initially)
+  // Always use list view for better UI
   useEffect(() => {
     if (!initialViewSet && virtualPlayers.length > 0) {
-      if (virtualPlayers.length > 4) {
-        setViewMode("list");
-      } else {
-        setViewMode("multi");
-      }
+      setViewMode("list");
       setInitialViewSet(true);
     }
   }, [virtualPlayers, initialViewSet]);
 
-  const handleSticksUpdate = async (playerId: string) => {
-    if (!room?.id || !user) return;
-
-    if (playerId !== user.uid) {
-      console.error(
-        "Tentative de modification des bâtons d'un autre utilisateur"
-      );
-      return;
-    }
-
-    try {
-      const updatedRoom = await RoomService.getRoomByIdLight(room.id);
-      if (updatedRoom) {
-        setRoom(updatedRoom);
-        await loadVirtualPlayers(updatedRoom);
-      }
-    } catch (error) {
-      console.error("Error updating sticks:", error);
-    }
-  };
-
-  const handleItemsUpdate = async (playerId: string) => {
-    if (!room?.id || !user) return;
-
-    if (playerId !== user.uid) {
-      console.error(
-        "Tentative de modification des items d'un autre utilisateur"
-      );
-      return;
-    }
-
-    try {
-      // Force reload of room data with full history for real-time updates
-      const updatedRoom = await RoomService.getRoomById(room.id, true);
-      if (updatedRoom) {
-        setRoom(updatedRoom);
-        await loadVirtualPlayers(updatedRoom);
-        // Force a re-render by updating the key or timestamp
-        window.dispatchEvent(
-          new CustomEvent("roomHistoryUpdated", {
-            detail: { roomId: room.id, timestamp: Date.now() },
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Error updating items:", error);
-    }
-  };
 
   const handleShareInvitation = async () => {
     if (!room?.id || !user) {
@@ -301,13 +247,6 @@ const StickRoom = () => {
     }
   };
 
-  const handleBackToList = () => {
-    setSelectedPlayer(null);
-    // Keep the current view mode instead of auto-determining
-    if (viewMode === "single") {
-      setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
-    }
-  };
 
   const handleShowSettings = () => {
     setViewMode("settings");
@@ -315,7 +254,7 @@ const StickRoom = () => {
 
   const handleBackFromSettings = () => {
     // Return to the appropriate view based on current players count
-    setViewMode(virtualPlayers.length > 4 ? "list" : "multi");
+    setViewMode("list");
   };
 
   const handleRoomUpdate = (updatedRoom: Room) => {
@@ -346,16 +285,9 @@ const StickRoom = () => {
 
   // Single player view when selected
   if (viewMode === "single" && selectedPlayer && room) {
-    return (
-      <SinglePlayerView
-        player={selectedPlayer}
-        roomId={room.id}
-        room={room}
-        virtualPlayers={virtualPlayers}
-        onBack={handleBackToList}
-        onSticksUpdate={handleSticksUpdate}
-      />
-    );
+    // Redirect back to list view since we removed single player view
+    setViewMode("list");
+    setSelectedPlayer(null);
   }
 
   // Settings view
@@ -474,52 +406,17 @@ const StickRoom = () => {
 
       {/* Game Area */}
       <div className="flex flex-col min-h-[calc(100vh-80px)]">
-        {viewMode === "list" ? (
-          // Player list view for 4+ players
-          <div className="flex-1 flex items-center justify-center p-4">
-            <PlayerListView
-              players={virtualPlayers}
-              onPlayerClick={handlePlayerSelect}
-              room={room}
-              itemType={itemType || undefined}
-              currentUserId={user?.uid}
-              onPlayersUpdate={() => loadVirtualPlayers(room)}
-            />
-          </div>
-        ) : (
-          // Multi-counter view for 2-4 players
-          <div className="flex-1 flex items-center justify-center">
-            <div
-              className={`grid gap-4 sm:gap-6 w-full max-w-6xl p-2 sm:p-4 ${
-                virtualPlayers.length === 1
-                  ? "grid-cols-1 max-w-md"
-                  : virtualPlayers.length === 2
-                    ? "grid-cols-2"
-                    : virtualPlayers.length === 3
-                      ? "grid-cols-2 lg:grid-cols-3"
-                      : "grid-cols-2"
-              }`}
-            >
-              {virtualPlayers.map((player) => {
-                return itemType ? (
-                  <ItemCounter
-                    key={player.id}
-                    playerName={player.name}
-                    items={player.items || []}
-                    roomId={room.id!}
-                    player={player.id}
-                    onItemsUpdate={() => handleItemsUpdate(player.id)}
-                    playerPhotoURL={player.photoURL}
-                    itemType={itemType!}
-                    isOwner={room?.owner?.uid === player.id}
-                    room={room}
-                    isCurrentUserOwner={room?.owner?.uid === user?.uid}
-                  />
-                ) : null;
-              })}
-            </div>
-          </div>
-        )}
+        {/* Always use player list view for better UI */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <PlayerListView
+            players={virtualPlayers}
+            onPlayerClick={handlePlayerSelect}
+            room={room}
+            itemType={itemType || undefined}
+            currentUserId={user?.uid}
+            onPlayersUpdate={() => loadVirtualPlayers(room)}
+          />
+        </div>
 
         {/* History Widget */}
         <RoomHistoryWidget room={room} />
