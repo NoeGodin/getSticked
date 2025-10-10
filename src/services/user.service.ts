@@ -4,8 +4,6 @@ import {
   getDocs,
   setDoc,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
   collection,
   query,
   where,
@@ -98,17 +96,20 @@ export class UserService {
         // Create user document if it doesn't exist
         await setDoc(userRef, {
           uid,
-          joinedRooms: [roomId],
+          joinedRooms: { [roomId]: true },
           createdAt: createTimestamp(),
           updatedAt: createTimestamp(),
         });
       } else {
-        // Update existing user
+        // Update existing user using atomic map operation
         await updateDoc(userRef, {
-          joinedRooms: arrayUnion(roomId),
+          [`joinedRooms.${roomId}`]: true,
           updatedAt: createTimestamp(),
         });
       }
+
+      // Clear user cache after update
+      MemoryCache.clear(`user_${uid}`);
     }, "Error adding room to user");
   }
 
@@ -116,9 +117,12 @@ export class UserService {
     return withErrorHandler(async () => {
       const userRef = doc(db, COLLECTIONS.USERS, uid);
       await updateDoc(userRef, {
-        joinedRooms: arrayRemove(roomId),
+        [`joinedRooms.${roomId}`]: null, // Use null to delete the field atomically
         updatedAt: createTimestamp(),
       });
+
+      // Clear user cache after update
+      MemoryCache.clear(`user_${uid}`);
     }, "Error removing room from user");
   }
 
@@ -128,8 +132,17 @@ export class UserService {
   ): Promise<void> {
     return withErrorHandler(async () => {
       const userRef = doc(db, COLLECTIONS.USERS, uid);
+      
+      // Remove joinedRooms from updates to prevent overwriting
+      // joinedRooms should only be modified through addRoomToUser/removeRoomFromUser
+      const { joinedRooms, ...safeUpdates } = updates;
+      
+      if (joinedRooms !== undefined) {
+        console.warn("updateUserProfile: Attempted to update joinedRooms directly. Use addRoomToUser/removeRoomFromUser instead.");
+      }
+      
       await updateDoc(userRef, {
-        ...updates,
+        ...safeUpdates,
         updatedAt: createTimestamp(),
       });
 

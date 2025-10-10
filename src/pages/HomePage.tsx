@@ -217,11 +217,12 @@ const HomePage = () => {
         const userData = await UserService.getUserById(user.uid);
         let joinedRooms: Room[] = [];
 
-        if (userData?.joinedRooms && userData.joinedRooms.length > 0) {
+        if (userData?.joinedRooms && Object.keys(userData.joinedRooms).length > 0) {
           // Get rooms the user has joined (but doesn't own)
+          const joinedRoomIds = Object.keys(userData.joinedRooms);
           const joinedRoomsQuery = query(
             collection(db, "rooms"),
-            where(documentId(), "in", userData.joinedRooms)
+            where(documentId(), "in", joinedRoomIds)
           );
 
           const joinedRoomsSnapshot = await getDocs(joinedRoomsQuery);
@@ -292,10 +293,17 @@ const HomePage = () => {
       // Get room's item type to calculate points correctly
       let roomItemType = null;
       if (room.itemTypeId) {
+        // First try to get from available types (generic + user's custom)
         const availableTypes = await ItemTypeService.getAvailableTypes(user?.uid);
         roomItemType = availableTypes.find(
           (type) => type.id === room.itemTypeId
         );
+        
+        // If not found, it might be a custom type from another user
+        // Fetch it directly by ID
+        if (!roomItemType) {
+          roomItemType = await ItemTypeService.getTypeById(room.itemTypeId);
+        }
       }
 
       // OPTIMIZED: Get all member data in a single query instead of N queries

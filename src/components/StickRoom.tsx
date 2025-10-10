@@ -124,7 +124,7 @@ const StickRoom = () => {
         const userData = await UserService.getUserById(user.uid);
         const isOwner = roomData.owner.uid === user.uid;
         const isAlreadyJoined =
-          userData?.joinedRooms?.includes(roomId) || false;
+          userData?.joinedRooms?.[roomId] === true || false;
 
         if (!isOwner && !isAlreadyJoined) {
           try {

@@ -7,7 +7,7 @@ export interface AuthUser {
   createdAt: string;
   lastSignIn: string;
   updatedAt?: string;
-  joinedRooms?: string[]; // Array of room IDs the user has joined
+  joinedRooms?: Record<string, boolean>; // Map of room IDs the user has joined (roomId -> true)
   photoURL?: string; // profile pic URL
   bio?: string;
 }

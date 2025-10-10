@@ -27,10 +27,10 @@ export class AuthUtils {
    * Checks if user is room member
    */
   static isRoomMember(
-    userRooms: string[] | undefined,
+    userRooms: Record<string, boolean> | undefined,
     roomId: string
   ): boolean {
-    return userRooms?.includes(roomId) || false;
+    return userRooms?.[roomId] === true || false;
   }
 
   /**
@@ -38,7 +38,7 @@ export class AuthUtils {
    */
   static ensureRoomAccess(
     roomOwnerUid: string,
-    userRooms: string[] | undefined,
+    userRooms: Record<string, boolean> | undefined,
     roomId: string,
     userId: string,
     operation: string = "this operation"

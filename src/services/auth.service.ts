@@ -46,7 +46,7 @@ export class AuthService {
         emailVerified: user.emailVerified,
         createdAt: createTimestamp(),
         lastSignIn: createTimestamp(),
-        joinedRooms: [],
+        joinedRooms: {},
       };
 
       await setDoc(doc(db, COLLECTIONS.USERS, user.uid), userData);

@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               emailVerified: firebaseUser.emailVerified,
               createdAt: new Date().toISOString(),
               lastSignIn: new Date().toISOString(),
-              joinedRooms: [],
+              joinedRooms: {},
               ...(firebaseUser.photoURL && { photoURL: firebaseUser.photoURL }),
             };
 

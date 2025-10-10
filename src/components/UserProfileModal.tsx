@@ -90,7 +90,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <p className="text-gray-700">{formatDate(user.createdAt)}</p>
             </div>
 
-            {user.joinedRooms && user.joinedRooms.length > 0 && (
+            {user.joinedRooms && Object.keys(user.joinedRooms).length > 0 && (
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
@@ -99,8 +99,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </span>
                 </div>
                 <p className="text-blue-700 font-medium">
-                  {user.joinedRooms.length}{" "}
-                  {user.joinedRooms.length === 1 ? "room" : "rooms"}
+                  {Object.keys(user.joinedRooms).length}{" "}
+                  {Object.keys(user.joinedRooms).length === 1 ? "room" : "rooms"}
                 </p>
               </div>
             )}
