@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronRight, Crown, Users, Shield, Settings } from "lucide-react";
+import { ChevronRight, Crown, Settings, Shield, Users } from "lucide-react";
 import Avatar from "./Avatar";
 import OwnerControlsModal from "./OwnerControlsModal";
 import UserProfileModal from "./UserProfileModal";
@@ -159,12 +159,7 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                   isCurrentUser ? "bg-blue-50 border-l-4 border-blue-500" : ""
                 }`}
               >
-                <button
-                  onClick={() => onPlayerClick(player.id)}
-                  className={`flex-1 flex items-center space-x-3 text-left hover:bg-gray-50 p-2 rounded transition-colors ${
-                    isCurrentUser ? "hover:bg-blue-100" : ""
-                  }`}
-                >
+                <div className="flex-1 flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
                     {player.total === maxScore && maxScore > 0 && (
                       <Crown
@@ -191,7 +186,13 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                     onClick={() => handleProfileClick(player.id)}
                   />
 
-                  <div className="min-w-0 flex-1">
+                  <button
+                    onClick={() => onPlayerClick(player.id)}
+                    className={`min-w-0 flex-1 text-left hover:bg-gray-50 p-2 rounded transition-colors ${
+                      isCurrentUser ? "hover:bg-blue-100" : ""
+                    }`}
+                    title="Cliquez pour voir le compteur"
+                  >
                     <div className="flex items-center space-x-2">
                       <h3
                         className={`font-medium truncate ${isCurrentUser ? "text-blue-700" : "text-gray-900"}`}
@@ -216,8 +217,8 @@ const PlayerListView: React.FC<PlayerListViewProps> = ({
                       {player.totalItems}{" "}
                       {player.totalItems === 1 ? "item" : "items"}
                     </p>
-                  </div>
-                </button>
+                  </button>
+                </div>
 
                 <div className="flex items-center space-x-3">
                   <div className="text-right">

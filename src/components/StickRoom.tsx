@@ -7,6 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import PlayerListView from "./PlayerListView.tsx";
 import RoomHistoryWidget from "./RoomHistoryWidget.tsx";
 import RoomSettings from "./RoomSettings.tsx";
+import SinglePlayerView from "./SinglePlayerView.tsx";
 import Loading from "./Loading";
 import type { Player, Room } from "../types/room.types";
 import type { ItemType, UserItem } from "../types/item-type.types";
@@ -285,9 +286,19 @@ const StickRoom = () => {
 
   // Single player view when selected
   if (viewMode === "single" && selectedPlayer && room) {
-    // Redirect back to list view since we removed single player view
-    setViewMode("list");
-    setSelectedPlayer(null);
+    return (
+      <SinglePlayerView
+        player={selectedPlayer}
+        roomId={room.id}
+        room={room}
+        virtualPlayers={virtualPlayers}
+        onBack={() => {
+          setViewMode("list");
+          setSelectedPlayer(null);
+        }}
+        onSticksUpdate={() => loadVirtualPlayers(room)}
+      />
+    );
   }
 
   // Settings view
